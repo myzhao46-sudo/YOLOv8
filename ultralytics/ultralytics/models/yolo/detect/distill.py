@@ -76,6 +76,18 @@ class DistillationLossWrapper:
                         return item.device
         return fallback
 
+    @staticmethod
+    def _model_device_dtype(
+        model: torch.nn.Module | None, fallback_device: torch.device, fallback_dtype: torch.dtype
+    ) -> tuple[torch.device, torch.dtype]:
+        if model is None:
+            return fallback_device, fallback_dtype
+        for p in model.parameters():
+            return p.device, p.dtype
+        for b in model.buffers():
+            return b.device, b.dtype
+        return fallback_device, fallback_dtype
+
     def _feature_distill_loss(
         self,
         student_preds: dict[str, torch.Tensor],
@@ -97,6 +109,8 @@ class DistillationLossWrapper:
             c = min(s.shape[1], t.shape[1])
             s = s[:, :c]
             t = t[:, :c]
+            if t.dtype != s.dtype:
+                t = t.to(dtype=s.dtype)
             loss = loss + F.mse_loss(s, t)
         return loss / max(n, 1)
 
@@ -123,12 +137,14 @@ class DistillationLossWrapper:
             n = min(s_logit.shape[-1], t_logit.shape[-1])
             s_logit = s_logit[..., :n]
             t_logit = t_logit[..., :n]
+        if t_logit.dtype != s_logit.dtype:
+            t_logit = t_logit.to(dtype=s_logit.dtype)
 
         t = max(self.cfg.temperature, 1e-6)
         if t != 1.0:
             s_logit = s_logit / t
             t_logit = t_logit / t
-        target_prob = torch.sigmoid(t_logit).detach()
+        target_prob = torch.sigmoid(t_logit).detach().to(dtype=s_logit.dtype)
         cls_loss = F.binary_cross_entropy_with_logits(s_logit, target_prob)
         if t != 1.0:
             cls_loss = cls_loss * (t * t)
@@ -153,8 +169,17 @@ class DistillationLossWrapper:
         if not student_preds:
             return base_total_loss, torch.cat((base_items, distill_items))
 
+        teacher_device, teacher_dtype = self._model_device_dtype(
+            self.teacher_model,
+            fallback_device=batch["img"].device,
+            fallback_dtype=batch["img"].dtype,
+        )
+        teacher_img = batch["img"]
+        if teacher_img.device != teacher_device or teacher_img.dtype != teacher_dtype:
+            teacher_img = teacher_img.to(device=teacher_device, dtype=teacher_dtype, non_blocking=True)
+
         with torch.no_grad():
-            teacher_out = self.teacher_model(batch["img"])
+            teacher_out = self.teacher_model(teacher_img)
             teacher_preds = self._parse_preds(teacher_out)
 
         feat_loss = self._feature_distill_loss(student_preds, teacher_preds, device=base_total_loss.device)

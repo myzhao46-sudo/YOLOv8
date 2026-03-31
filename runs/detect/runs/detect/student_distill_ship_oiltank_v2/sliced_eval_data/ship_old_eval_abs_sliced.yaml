@@ -1,0 +1,9 @@
+path: ''
+train: C:\Users\DOCTOR\Documents\GitHub\YOLOv8\runs\detect\runs\detect\student_distill_ship_oiltank_v2\slice_cache\SSDD_train_6bf8f04be7\images\train
+val: C:\Users\DOCTOR\Documents\GitHub\YOLOv8\runs\detect\runs\detect\student_distill_ship_oiltank_v2\slice_cache\SSDD_val_3fc694c4da\images\val
+test: null
+nc: 2
+names:
+  0: ship
+  1: oiltank
+channels: 3

@@ -1,6 +1,6 @@
 task: detect
 mode: train
-model: yolov8n.pt
+model: runs\detect\runs\detect\teacher_ship_yolov8n_pretrained\weights\last.pt
 data: ultralytics/tmp_data/ship_teacher_abs.yaml
 epochs: 80
 time: null
@@ -11,7 +11,7 @@ save: true
 save_period: -1
 cache: false
 device: '0'
-workers: 0
+workers: 8
 project: runs/detect
 name: teacher_ship_yolov8n_pretrained
 exist_ok: true
@@ -24,7 +24,7 @@ single_cls: false
 rect: false
 cos_lr: false
 close_mosaic: 10
-resume: false
+resume: runs\detect\runs\detect\teacher_ship_yolov8n_pretrained\weights\last.pt
 amp: false
 fraction: 1.0
 profile: false
@@ -77,7 +77,7 @@ momentum: 0.937
 weight_decay: 0.0005
 warmup_epochs: 3.0
 warmup_momentum: 0.8
-warmup_bias_lr: 0.1
+warmup_bias_lr: 0.0
 box: 7.5
 cls: 0.5
 dfl: 1.5

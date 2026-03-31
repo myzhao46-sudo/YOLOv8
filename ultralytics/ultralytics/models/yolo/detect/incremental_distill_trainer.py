@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from copy import copy
 from dataclasses import replace
 from pathlib import Path
@@ -243,7 +244,8 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 args=args,
                 _callbacks=self.callbacks,
             )
-            stats = validator(model=model_for_eval)
+            eval_model = deepcopy(unwrap_model(model_for_eval)).eval()
+            stats = validator(model=eval_model)
             if not isinstance(stats, dict):
                 continue
             for k, v in stats.items():

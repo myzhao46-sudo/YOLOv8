@@ -1,0 +1,18 @@
+{
+  "fingerprint": "8b0a8f33311406b71e640b4e113446a1",
+  "mode": "val",
+  "slice_config": {
+    "enabled": true,
+    "slice_size": 512,
+    "slice_overlap": 0.25,
+    "min_box_keep_ratio": 0.5,
+    "empty_tile_keep_prob": 1.0,
+    "cache_slices": true,
+    "cache_dir": null,
+    "seed": 0
+  },
+  "source_image_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\oiltank\\images\\train",
+  "source_label_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\oiltank\\labels\\train",
+  "tile_count": 68,
+  "label_count": 66
+}

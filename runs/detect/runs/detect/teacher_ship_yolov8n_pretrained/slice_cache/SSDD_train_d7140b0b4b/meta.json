@@ -1,0 +1,18 @@
+{
+  "fingerprint": "30b6709864b15c5f99452a6c21b71cf5",
+  "mode": "train",
+  "slice_config": {
+    "enabled": true,
+    "slice_size": 512,
+    "slice_overlap": 0.25,
+    "min_box_keep_ratio": 0.5,
+    "empty_tile_keep_prob": 0.3,
+    "cache_slices": true,
+    "cache_dir": null,
+    "seed": 0
+  },
+  "source_image_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\SSDD\\images\\train",
+  "source_label_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\SSDD\\labels\\train",
+  "tile_count": 951,
+  "label_count": 2109
+}
