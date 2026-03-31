@@ -145,9 +145,16 @@ class IncrementalDistillTrainer(DetectionTrainer):
         return yolo.detect.DetectionValidator(
             self.test_loader,
             save_dir=self.save_dir,
-            args=copy(self.args),
+            args=self._validator_args(),
             _callbacks=self.callbacks,
         )
+
+    def _validator_args(self) -> dict[str, Any]:
+        """Build validator-safe args by removing custom incremental keys."""
+        args = vars(copy(self.args)).copy()
+        for key in self._CUSTOM_OVERRIDE_KEYS:
+            args.pop(key, None)
+        return args
 
     def _setup_train(self):
         super()._setup_train()
@@ -179,6 +186,15 @@ class IncrementalDistillTrainer(DetectionTrainer):
             teacher_model=self.teacher_model,
             cfg=distill_cfg,
         )
+        if self.ema and getattr(self.ema, "ema", None) is not None:
+            ema_model = unwrap_model(self.ema.ema)
+            if getattr(ema_model, "criterion", None) is None:
+                ema_model.criterion = ema_model.init_criterion()
+            ema_model.criterion = DistillationLossWrapper(
+                base_criterion=ema_model.criterion,
+                teacher_model=self.teacher_model,
+                cfg=distill_cfg,
+            )
 
         if RANK in {-1, 0}:
             LOGGER.info(
@@ -211,15 +227,15 @@ class IncrementalDistillTrainer(DetectionTrainer):
             if not data_yaml:
                 continue
             eval_data_yaml = self._prepare_eval_data_yaml(str(data_yaml))
-            args = copy(self.args)
-            args.data = str(eval_data_yaml)
-            args.mode = "val"
-            args.split = "val"
-            args.plots = False
-            args.save_json = False
-            args.save_txt = False
-            args.save_conf = False
-            args.compile = False
+            args = self._validator_args()
+            args["data"] = str(eval_data_yaml)
+            args["mode"] = "val"
+            args["split"] = "val"
+            args["plots"] = False
+            args["save_json"] = False
+            args["save_txt"] = False
+            args["save_conf"] = False
+            args["compile"] = False
 
             validator = yolo.detect.DetectionValidator(
                 dataloader=None,
@@ -271,4 +287,3 @@ class IncrementalDistillTrainer(DetectionTrainer):
         YAML.save(out_yaml, out_dict)
         self._sliced_eval_yaml[data_yaml] = str(out_yaml)
         return str(out_yaml)
-

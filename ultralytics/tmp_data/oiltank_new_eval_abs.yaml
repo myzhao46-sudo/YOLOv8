@@ -1,0 +1,6 @@
+﻿path: C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets
+train: oiltank/images/train
+val: oiltank/images/val
+names:
+  0: ship
+  1: oiltank

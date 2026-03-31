@@ -3,7 +3,7 @@
 #   0: ship
 #   1: oiltank
 
-path: ../../../datasets
+path: ultralytics/datasets
 train:
   - SSDD/images/train
   - oiltank/images/train
@@ -14,4 +14,3 @@ val:
 names:
   0: ship
   1: oiltank
-

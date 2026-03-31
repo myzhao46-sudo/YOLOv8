@@ -44,7 +44,16 @@ class DistillationLossWrapper:
 
     def __getattr__(self, name: str):
         # Delegate unknown attributes to wrapped criterion (e.g., parse_output, assigner, update).
-        return getattr(self.base_criterion, name)
+        base = self.__dict__.get("base_criterion", None)
+        if base is None:
+            raise AttributeError(name)
+        return getattr(base, name)
+
+    def __getstate__(self) -> dict[str, Any]:
+        """Return deepcopy-safe state and avoid serializing teacher model in checkpoints."""
+        state = self.__dict__.copy()
+        state["teacher_model"] = None
+        return state
 
     @staticmethod
     def _parse_preds(
