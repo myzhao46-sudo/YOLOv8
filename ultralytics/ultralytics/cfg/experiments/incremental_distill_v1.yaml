@@ -1,0 +1,50 @@
+# Incremental detection + teacher-student distillation (v1 prototype).
+
+task: detect
+mode: train
+
+# Student setup
+model: yolov8n.pt
+data: ultralytics/cfg/datasets/ship_oiltank_joint.yaml
+epochs: 100
+batch: 16
+imgsz: 640
+workers: 8
+device: 0
+project: runs/detect
+name: incremental_distill_v1
+exist_ok: False
+val: True
+plots: True
+
+# Experiment mode:
+#   naive_finetune | distill_only | replay_only | replay_distill
+experiment_mode: distill_only
+
+# Distillation
+enable_distillation: True
+teacher_weights: ultralytics/runs/detect/ship_teacher/weights/best.pt
+distill_feature_weight: 1.0
+distill_cls_weight: 1.0
+distill_temperature: 1.0
+distill_student_old_class: 0
+distill_teacher_old_class: 0
+
+# Replay (v1 interface)
+enable_replay: False
+replay_data:
+
+# Sliding-window slicing
+enable_slicing: True
+slice_size: 512
+slice_overlap: 0.25
+min_box_keep_ratio: 0.5
+empty_tile_keep_prob: 0.3
+cache_slices: True
+slice_cache_dir:
+
+# Extra validation splits
+old_val_data: ultralytics/cfg/datasets/ship_old_eval.yaml
+new_val_data: ultralytics/cfg/datasets/oiltank_new_eval.yaml
+joint_val_data: ultralytics/cfg/datasets/ship_oiltank_joint.yaml
+

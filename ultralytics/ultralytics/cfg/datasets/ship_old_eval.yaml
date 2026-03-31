@@ -1,0 +1,13 @@
+# Old-class evaluation dataset (SSDD only).
+# Keep the final class space fixed to:
+#   0: ship
+#   1: oiltank
+
+path: ../../../datasets
+train: SSDD/images/train
+val: SSDD/images/val
+
+names:
+  0: ship
+  1: oiltank
+

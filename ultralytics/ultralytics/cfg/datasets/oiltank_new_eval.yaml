@@ -1,0 +1,13 @@
+# New-class evaluation dataset (oiltank only).
+# Keep the final class space fixed to:
+#   0: ship
+#   1: oiltank
+
+path: ../../../datasets
+train: oiltank/images/train
+val: oiltank/images/val
+
+names:
+  0: ship
+  1: oiltank
+

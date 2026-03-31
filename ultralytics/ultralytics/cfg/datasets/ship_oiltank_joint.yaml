@@ -1,0 +1,17 @@
+# Joint training/validation dataset for incremental detection (2 classes).
+# Class mapping is fixed:
+#   0: ship
+#   1: oiltank
+
+path: ../../../datasets
+train:
+  - SSDD/images/train
+  - oiltank/images/train
+val:
+  - SSDD/images/val
+  - oiltank/images/val
+
+names:
+  0: ship
+  1: oiltank
+
