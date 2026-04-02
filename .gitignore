@@ -1,0 +1,9 @@
+# Local experiment artifacts (repo root)
+runs/
+
+# Incremental-distill local configs/caches
+ultralytics/tmp_data/
+ultralytics/.yolo_cfg/
+ultralytics/**/slice_cache/
+ultralytics/**/sliced_eval_data/
+ultralytics/**/.slice_cache/
