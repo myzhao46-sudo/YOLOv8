@@ -11,14 +11,13 @@ from typing import Any
 from ultralytics.data.utils import check_det_dataset
 from ultralytics.models import yolo
 from ultralytics.models.yolo.detect.train import DetectionTrainer
-from ultralytics.models.yolo.detect.distill import DistillationConfig, DistillationLossWrapper, load_teacher_model
 from ultralytics.data.sliding_window import SliceConfig, prepare_sliced_image_paths
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, YAML
 from ultralytics.utils.torch_utils import unwrap_model
 
 
 class IncrementalDistillTrainer(DetectionTrainer):
-    """Incremental detection trainer with optional replay, slicing, and teacher-student distillation."""
+    """Incremental detection trainer with optional replay and slicing."""
 
     _CUSTOM_OVERRIDE_KEYS = {
         "experiment_mode",
@@ -42,9 +41,17 @@ class IncrementalDistillTrainer(DetectionTrainer):
         "cache_slices",
         "slice_cache_dir",
     }
-    _DISTILL_MODES = {"distill_only", "replay_distill"}
-    _REPLAY_MODES = {"replay_only", "replay_distill"}
-    _SUPPORTED_MODES = {"naive_finetune", "distill_only", "replay_only", "replay_distill"}
+    _DISTILL_ARG_KEYS = {
+        "enable_distillation",
+        "teacher_weights",
+        "distill_feature_weight",
+        "distill_cls_weight",
+        "distill_temperature",
+        "distill_student_old_class",
+        "distill_teacher_old_class",
+    }
+    _MODE_ALIASES = {"distill_only": "naive_finetune", "replay_distill": "replay_only"}
+    _SUPPORTED_MODES = {"naive_finetune", "replay_only"}
 
     def __init__(self, cfg=DEFAULT_CFG, overrides: dict[str, Any] | None = None, _callbacks: dict | None = None):
         overrides = (overrides or {}).copy()
@@ -54,6 +61,12 @@ class IncrementalDistillTrainer(DetectionTrainer):
             setattr(self.args, k, v)
 
         mode = str(getattr(self.args, "experiment_mode", "naive_finetune"))
+        if mode in self._MODE_ALIASES:
+            mapped_mode = self._MODE_ALIASES[mode]
+            LOGGER.warning(
+                f"experiment_mode='{mode}' is deprecated because distillation is removed. Falling back to '{mapped_mode}'."
+            )
+            mode = mapped_mode
         if mode not in self._SUPPORTED_MODES:
             LOGGER.warning(
                 f"Unsupported experiment_mode='{mode}', falling back to 'naive_finetune'. "
@@ -62,10 +75,7 @@ class IncrementalDistillTrainer(DetectionTrainer):
             mode = "naive_finetune"
         self.experiment_mode = mode
 
-        self.enable_distillation = self._get_bool(
-            "enable_distillation", default=self.experiment_mode in self._DISTILL_MODES
-        )
-        self.enable_replay = self._get_bool("enable_replay", default=self.experiment_mode in self._REPLAY_MODES)
+        self.enable_replay = self._get_bool("enable_replay", default=self.experiment_mode == "replay_only")
         self.enable_slicing = self._get_bool("enable_slicing", default=False)
         self.slice_cfg = SliceConfig(
             enabled=self.enable_slicing,
@@ -78,7 +88,7 @@ class IncrementalDistillTrainer(DetectionTrainer):
             seed=int(self._get_arg("seed", 0)),
         )
 
-        self.teacher_model = None
+        self._warn_ignored_distillation_args()
         self._sliced_eval_yaml: dict[str, str] = {}
 
         if RANK in {-1, 0}:
@@ -86,7 +96,6 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 "Incremental trainer config: "
                 f"mode={self.experiment_mode}, "
                 f"slicing={self.enable_slicing}, "
-                f"distill={self.enable_distillation}, "
                 f"replay={self.enable_replay}"
             )
 
@@ -101,6 +110,18 @@ class IncrementalDistillTrainer(DetectionTrainer):
         if isinstance(value, str):
             return value.strip().lower() in {"1", "true", "yes", "y", "on"}
         return bool(value)
+
+    def _warn_ignored_distillation_args(self) -> None:
+        ignored = {}
+        for key in sorted(self._DISTILL_ARG_KEYS):
+            value = getattr(self.args, key, None)
+            if value not in (None, False, "", 0, 0.0):
+                ignored[key] = value
+        if ignored:
+            LOGGER.warning(
+                "Distillation options are ignored because distillation support has been removed: "
+                + ", ".join(f"{k}={v}" for k, v in ignored.items())
+            )
 
     @staticmethod
     def _to_list(path_or_paths: str | list[str]) -> list[str]:
@@ -141,8 +162,8 @@ class IncrementalDistillTrainer(DetectionTrainer):
         return super().build_dataset(img_path=img_path, mode=mode, batch=batch)
 
     def get_validator(self):
-        """Return DetectionValidator with extended loss columns."""
-        self.loss_names = ("box_loss", "cls_loss", "dfl_loss", "distill_feat_loss", "distill_cls_loss")
+        """Return DetectionValidator with standard detection loss columns."""
+        self.loss_names = ("box_loss", "cls_loss", "dfl_loss")
         return yolo.detect.DetectionValidator(
             self.test_loader,
             save_dir=self.save_dir,
@@ -156,54 +177,6 @@ class IncrementalDistillTrainer(DetectionTrainer):
         for key in self._CUSTOM_OVERRIDE_KEYS:
             args.pop(key, None)
         return args
-
-    def _setup_train(self):
-        super()._setup_train()
-        self._attach_distillation_criterion()
-
-    def _attach_distillation_criterion(self) -> None:
-        student = unwrap_model(self.model)
-        if getattr(student, "criterion", None) is None:
-            student.criterion = student.init_criterion()
-
-        teacher_weights = self._get_arg("teacher_weights", None)
-        if self.enable_distillation:
-            if not teacher_weights:
-                raise ValueError("Distillation is enabled but 'teacher_weights' is not set.")
-            self.teacher_model = load_teacher_model(teacher_weights, device=self.device)
-        else:
-            self.teacher_model = None
-
-        distill_cfg = DistillationConfig(
-            enabled=self.enable_distillation and self.teacher_model is not None,
-            feature_weight=float(self._get_arg("distill_feature_weight", 1.0)),
-            cls_weight=float(self._get_arg("distill_cls_weight", 1.0)),
-            temperature=float(self._get_arg("distill_temperature", 1.0)),
-            student_old_class_index=int(self._get_arg("distill_student_old_class", 0)),
-            teacher_old_class_index=int(self._get_arg("distill_teacher_old_class", 0)),
-        )
-        student.criterion = DistillationLossWrapper(
-            base_criterion=student.criterion,
-            teacher_model=self.teacher_model,
-            cfg=distill_cfg,
-        )
-        if self.ema and getattr(self.ema, "ema", None) is not None:
-            ema_model = unwrap_model(self.ema.ema)
-            if getattr(ema_model, "criterion", None) is None:
-                ema_model.criterion = ema_model.init_criterion()
-            ema_model.criterion = DistillationLossWrapper(
-                base_criterion=ema_model.criterion,
-                teacher_model=self.teacher_model,
-                cfg=distill_cfg,
-            )
-
-        if RANK in {-1, 0}:
-            LOGGER.info(
-                "Distillation setup complete: "
-                f"enabled={distill_cfg.enabled}, "
-                f"feature_w={distill_cfg.feature_weight}, "
-                f"cls_w={distill_cfg.cls_weight}"
-            )
 
     def validate(self):
         metrics, fitness = super().validate()
