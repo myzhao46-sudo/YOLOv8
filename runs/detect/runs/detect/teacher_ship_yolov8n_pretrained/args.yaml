@@ -1,17 +1,17 @@
 task: detect
 mode: train
-model: runs\detect\runs\detect\teacher_ship_yolov8n_pretrained\weights\last.pt
-data: ultralytics/tmp_data/ship_teacher_abs.yaml
+model: /root/autodl-tmp/YOLOv8/yolov8n.pt
+data: /root/autodl-tmp/YOLOv8/ultralytics/tmp_data/ship_teacher_abs.yaml
 epochs: 80
 time: null
 patience: 30
-batch: 16
+batch: 8
 imgsz: 640
 save: true
 save_period: -1
 cache: false
 device: '0'
-workers: 8
+workers: 0
 project: runs/detect
 name: teacher_ship_yolov8n_pretrained
 exist_ok: true
@@ -24,8 +24,8 @@ single_cls: false
 rect: false
 cos_lr: false
 close_mosaic: 10
-resume: runs\detect\runs\detect\teacher_ship_yolov8n_pretrained\weights\last.pt
-amp: false
+resume: false
+amp: true
 fraction: 1.0
 profile: false
 freeze: null
@@ -77,7 +77,7 @@ momentum: 0.937
 weight_decay: 0.0005
 warmup_epochs: 3.0
 warmup_momentum: 0.8
-warmup_bias_lr: 0.0
+warmup_bias_lr: 0.1
 box: 7.5
 cls: 0.5
 dfl: 1.5
@@ -106,4 +106,4 @@ auto_augment: randaugment
 erasing: 0.4
 cfg: null
 tracker: botsort.yaml
-save_dir: C:\Users\DOCTOR\Documents\GitHub\YOLOv8\runs\detect\runs\detect\teacher_ship_yolov8n_pretrained
+save_dir: /root/autodl-tmp/YOLOv8/runs/detect/runs/detect/teacher_ship_yolov8n_pretrained

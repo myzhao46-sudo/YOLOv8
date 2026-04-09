@@ -1,0 +1,13 @@
+numpy==1.26.4
+opencv-python==4.10.0.84
+torch==2.1.2+cu118
+torchvision==0.16.2+cu118
+torchaudio==2.1.2+cu118
+ultralytics==8.4.32
+matplotlib
+pillow
+PyYAML
+requests
+scipy
+psutil
+tqdm

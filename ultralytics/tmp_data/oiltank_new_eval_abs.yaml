@@ -1,4 +1,4 @@
-path: ultralytics/datasets
+path: /root/autodl-tmp/YOLOv8/ultralytics/datasets
 train: oiltank/images/train
 val: oiltank/images/val
 names:

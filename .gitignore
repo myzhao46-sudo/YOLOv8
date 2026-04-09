@@ -7,3 +7,5 @@ ultralytics/.yolo_cfg/
 ultralytics/**/slice_cache/
 ultralytics/**/sliced_eval_data/
 ultralytics/**/.slice_cache/
+ultralytics/datasets/
+ultralytics/tmp_data/cache/
