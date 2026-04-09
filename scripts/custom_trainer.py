@@ -24,6 +24,7 @@ class EWC_DetectionTrainer(DetectionTrainer):
         fisher_mask: dict[str, torch.Tensor] | None = None,
         lambda_ewc: float = 0.0,
         ewc_log_interval: int = 50,
+        extra_eval_interval: int = 10,
         old_val_data: str | None = None,
         new_val_data: str | None = None,
         joint_val_data: str | None = None,
@@ -45,11 +46,13 @@ class EWC_DetectionTrainer(DetectionTrainer):
         self.ewc_last_base_loss = 0.0
         self.ewc_last_loss = 0.0
         self.ewc_last_total_loss = 0.0
+        self.extra_eval_interval = max(int(extra_eval_interval), 0)
         self._extra_eval_data = {
             "old": old_val_data,
             "new": new_val_data,
             "joint": joint_val_data,
         }
+        self._extra_metric_keys = ("metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)", "metrics/mAP50-95(B)")
 
     @staticmethod
     def _normalize_state(state: dict[str, torch.Tensor] | None) -> dict[str, torch.Tensor]:
@@ -144,10 +147,37 @@ class EWC_DetectionTrainer(DetectionTrainer):
         metrics, fitness = super().validate()
         if metrics is None:
             return metrics, fitness
-        extra_metrics = self._run_extra_validations()
-        if extra_metrics:
-            metrics.update(extra_metrics)
+        extra_metrics = self._empty_extra_metrics()
+        if self._should_run_extra_validations():
+            extra_metrics.update(self._run_extra_validations())
+        else:
+            epoch = int(getattr(self, "epoch", -1)) + 1
+            LOGGER.info(
+                f"[EWC] skip old/new/joint extra eval at epoch {epoch}; extra_eval_interval={self.extra_eval_interval}"
+            )
+        metrics.update(extra_metrics)
         return metrics, fitness
+
+    def _empty_extra_metrics(self) -> dict[str, float]:
+        empty = {}
+        for tag, data_yaml in self._extra_eval_data.items():
+            if not data_yaml:
+                continue
+            for key in self._extra_metric_keys:
+                empty[f"{tag}/{key}"] = float("nan")
+        return empty
+
+    def _should_run_extra_validations(self) -> bool:
+        if not any(self._extra_eval_data.values()):
+            return False
+        epoch = int(getattr(self, "epoch", -1)) + 1
+        total_epochs = int(getattr(self, "epochs", epoch))
+        is_final = epoch >= total_epochs
+        if is_final:
+            return True
+        if self.extra_eval_interval <= 0:
+            return False
+        return epoch % self.extra_eval_interval == 0
 
     def _run_extra_validations(self) -> dict[str, float]:
         model_for_eval = self.ema.ema if self.ema else unwrap_model(self.model)

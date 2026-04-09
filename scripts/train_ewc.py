@@ -100,6 +100,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--lambda-ewc", type=float, default=500.0)
     parser.add_argument("--ewc-log-interval", type=int, default=20)
+    parser.add_argument("--extra-eval-interval", type=int, default=10, help="Run old/new/joint eval every N epochs")
     parser.add_argument("--topk-ratio", "--fisher-topk-ratio", dest="topk_ratio", type=float, default=1.0)
     parser.add_argument("--fisher-max-batches", type=int, default=0, help="0 means full old-task dataloader")
     parser.add_argument("--fisher-cache-dir", type=str, default=DEFAULTS["fisher_cache_dir"])
@@ -206,6 +207,7 @@ def main() -> None:
     LOGGER.info(f"joint_val_yaml: {joint_val_yaml}")
     LOGGER.info(f"lambda_ewc: {args.lambda_ewc}")
     LOGGER.info(f"topk_ratio: {args.topk_ratio}")
+    LOGGER.info(f"extra_eval_interval: {args.extra_eval_interval}")
     LOGGER.info(f"old task train image count: {old_counts['train']}")
     LOGGER.info(f"new task train image count: {new_counts['train']}")
     LOGGER.info(f"new task val image count: {new_counts['val']}")
@@ -263,6 +265,7 @@ def main() -> None:
         fisher_mask=fisher_mask,
         lambda_ewc=args.lambda_ewc,
         ewc_log_interval=args.ewc_log_interval,
+        extra_eval_interval=args.extra_eval_interval,
         old_val_data=str(old_val_yaml),
         new_val_data=str(new_val_yaml),
         joint_val_data=str(joint_val_yaml) if joint_val_yaml else None,

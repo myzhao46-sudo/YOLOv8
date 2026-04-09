@@ -25,7 +25,7 @@ python scripts/train_ewc.py \
   --new-data-yaml ultralytics/tmp_data/oiltank_new_eval_abs.yaml \
   --joint-val-yaml ultralytics/tmp_data/ship_oiltank_joint_abs.yaml \
   --epochs 100 --batch 16 --imgsz 640 --device 0 \
-  --lambda-ewc 500 --topk-ratio 0.2
+  --lambda-ewc 500 --topk-ratio 0.2 --extra-eval-interval 10
 ```
 
 Smoke test:
@@ -39,4 +39,4 @@ python scripts/train_ewc.py --device cpu --smoke
 - This integration keeps the native YOLO detection training loop and only injects EWC into `model.loss`.
 - Fisher and old params are saved under `--fisher-cache-dir` as `old_params.pth` and `fisher.pth`.
 - If class count changes between old and new tasks, detection head parameters may be shape-mismatched and skipped by EWC (reported in logs).
-- By default, script reports extra old/new/joint validation metrics each epoch if corresponding YAMLs are provided.
+- By default, script reports extra old/new/joint validation metrics every 10 epochs (and final epoch).
