@@ -13,7 +13,9 @@ from ultralytics.models import yolo
 from ultralytics.models.yolo.detect.train import DetectionTrainer
 from ultralytics.models.yolo.detect.distill import DistillationConfig, DistillationLossWrapper, load_teacher_model
 from ultralytics.data.sliding_window import SliceConfig, prepare_sliced_image_paths
+from ultralytics.nn.tasks import YOLOEModel
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, YAML
+from ultralytics.utils.checks import check_yaml
 from ultralytics.utils.torch_utils import unwrap_model
 
 
@@ -41,10 +43,17 @@ class IncrementalDistillTrainer(DetectionTrainer):
         "empty_tile_keep_prob",
         "cache_slices",
         "slice_cache_dir",
+        "student_arch",
+        "yoloe_class_names",
+        "yoloe_prompt_mode",
+        "yoloe_allow_seg_init",
+        "distill_student_old_class_name",
+        "distill_teacher_old_class_name",
     }
     _DISTILL_MODES = {"distill_only", "replay_distill"}
     _REPLAY_MODES = {"replay_only", "replay_distill"}
     _SUPPORTED_MODES = {"naive_finetune", "distill_only", "replay_only", "replay_distill"}
+    _SUPPORTED_STUDENT_ARCH = {"auto", "yolov8", "yoloe"}
 
     def __init__(self, cfg=DEFAULT_CFG, overrides: dict[str, Any] | None = None, _callbacks: dict | None = None):
         overrides = (overrides or {}).copy()
@@ -67,6 +76,12 @@ class IncrementalDistillTrainer(DetectionTrainer):
         )
         self.enable_replay = self._get_bool("enable_replay", default=self.experiment_mode in self._REPLAY_MODES)
         self.enable_slicing = self._get_bool("enable_slicing", default=False)
+        self.student_arch = self._resolve_student_arch()
+        self.yoloe_prompt_mode = str(self._get_arg("yoloe_prompt_mode", "fixed_text")).strip().lower()
+        if self.student_arch == "yoloe" and self.yoloe_prompt_mode != "fixed_text":
+            raise ValueError(
+                f"Unsupported yoloe_prompt_mode='{self.yoloe_prompt_mode}'. Only 'fixed_text' is currently supported."
+            )
         self.slice_cfg = SliceConfig(
             enabled=self.enable_slicing,
             slice_size=int(self._get_arg("slice_size", 512)),
@@ -85,6 +100,7 @@ class IncrementalDistillTrainer(DetectionTrainer):
             LOGGER.info(
                 "Incremental trainer config: "
                 f"mode={self.experiment_mode}, "
+                f"student_arch={self.student_arch}, "
                 f"slicing={self.enable_slicing}, "
                 f"distill={self.enable_distillation}, "
                 f"replay={self.enable_replay}"
@@ -101,6 +117,191 @@ class IncrementalDistillTrainer(DetectionTrainer):
         if isinstance(value, str):
             return value.strip().lower() in {"1", "true", "yes", "y", "on"}
         return bool(value)
+
+    def _resolve_student_arch(self) -> str:
+        arch = str(self._get_arg("student_arch", "auto")).strip().lower()
+        if arch not in self._SUPPORTED_STUDENT_ARCH:
+            raise ValueError(
+                f"Unsupported student_arch='{arch}'. Supported: {sorted(self._SUPPORTED_STUDENT_ARCH)}"
+            )
+
+        if arch == "auto":
+            model_stem = Path(str(getattr(self.args, "model", ""))).stem.lower()
+            return "yoloe" if "yoloe" in model_stem else "yolov8"
+        return arch
+
+    @staticmethod
+    def _normalize_names(names: Any) -> list[str]:
+        if isinstance(names, dict):
+            return [str(v) for _, v in sorted(names.items(), key=lambda x: int(x[0]))]
+        if isinstance(names, (list, tuple)):
+            return [str(v) for v in names]
+        return []
+
+    @staticmethod
+    def _parse_class_names(value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [x.strip() for x in value.split(",") if x.strip()]
+        if isinstance(value, (list, tuple)):
+            return [str(x).strip() for x in value if str(x).strip()]
+        raise TypeError(
+            f"Expected yoloe_class_names to be None, comma-separated string, or list/tuple, but got {type(value)}."
+        )
+
+    @staticmethod
+    def _resolve_class_index(
+        names: list[str],
+        class_name: Any,
+        fallback_index: int,
+        *,
+        scope: str,
+    ) -> int:
+        if class_name is None:
+            return int(fallback_index)
+        if not isinstance(class_name, str):
+            return int(class_name)
+        if not names:
+            raise ValueError(f"Cannot resolve {scope} class name '{class_name}' because class names are unavailable.")
+        lookup = {str(name): i for i, name in enumerate(names)}
+        if class_name not in lookup:
+            raise ValueError(
+                f"{scope} class name '{class_name}' not found in available names: {names}. "
+                "Please fix the class name or use explicit index."
+            )
+        return int(lookup[class_name])
+
+    @staticmethod
+    def _infer_yoloe_head(weights: Any) -> tuple[str, bool]:
+        """Return (head_name, has_prompt_free_lrpc) from a loaded checkpoint model."""
+        head_name = ""
+        has_lrpc = False
+        with_head = getattr(weights, "model", None)
+        if isinstance(with_head, (list, tuple)) and with_head:
+            head = with_head[-1]
+            head_name = head.__class__.__name__.lower()
+            has_lrpc = hasattr(head, "lrpc")
+        elif hasattr(with_head, "__getitem__"):
+            try:
+                head = with_head[-1]
+                head_name = head.__class__.__name__.lower()
+                has_lrpc = hasattr(head, "lrpc")
+            except Exception:
+                head_name = ""
+                has_lrpc = False
+        return head_name, has_lrpc
+
+    @staticmethod
+    def _seg_source_to_detect_yaml(source: str | None) -> str:
+        """Convert a YOLOE seg/seg-pf source reference to its detect YAML reference."""
+        if not source:
+            raise ValueError("Unable to infer detect YAML for YOLOE: source reference is empty.")
+        src = str(source).strip()
+        src_path = Path(src)
+        detect_stem = src_path.stem.replace("-seg-pf", "").replace("-seg", "")
+        if not detect_stem:
+            raise ValueError(f"Unable to derive detect YAML from source '{source}'.")
+        return str(src_path.with_name(f"{detect_stem}.yaml"))
+
+    @staticmethod
+    def _is_seg_source_stem(stem: str) -> bool:
+        """Return True for segmentation sources, excluding explicit '-seg-det' detect-converted checkpoints."""
+        stem = stem.lower()
+        return "-seg" in stem and "-seg-det" not in stem
+
+    def _validate_yoloe_student_source(self, cfg: str | dict | None, weights: Any) -> str:
+        """Validate YOLOE source and return the detect-model cfg used to build YOLOEModel."""
+        allow_seg_init = self._get_bool("yoloe_allow_seg_init", default=True)
+
+        model_ref = str(getattr(self.args, "model", "") or "")
+        model_stem = Path(model_ref).stem.lower()
+        cfg_ref = cfg.get("yaml_file", None) if isinstance(cfg, dict) else cfg
+        cfg_stem = Path(str(cfg_ref or "")).stem.lower()
+        stems = [s for s in (model_stem, cfg_stem) if s]
+
+        seg_pf_source = any("-seg-pf" in stem for stem in stems)
+        seg_source = any(self._is_seg_source_stem(stem) for stem in stems)
+
+        head_name = ""
+        if weights is not None:
+            w_task = getattr(weights, "task", None)
+            head_name, has_lrpc = self._infer_yoloe_head(weights)
+            seg_source = seg_source or w_task == "segment" or "segment" in head_name
+            seg_pf_source = seg_pf_source or has_lrpc
+            if w_task not in {None, "detect", "segment"}:
+                raise ValueError(
+                    f"Loaded YOLOE checkpoint task='{w_task}' is incompatible with this incremental detect pipeline."
+                )
+
+        if seg_pf_source:
+            raise ValueError(
+                "YOLOE prompt-free segmentation checkpoints ('-seg-pf' / LRPC head) are not supported in this "
+                "incremental detect-distill pipeline. Please use a YOLOE detect checkpoint, or a non-prompt-free "
+                "YOLOE '-seg.pt' checkpoint for detect-initialization."
+            )
+
+        cfg_for_build = cfg_ref or model_ref
+        if not cfg_for_build:
+            raise ValueError("Unable to determine YOLOE cfg for student construction.")
+
+        if seg_source:
+            if not allow_seg_init:
+                raise ValueError(
+                    "YOLOE segmentation source detected but yoloe_allow_seg_init=False. "
+                    "Provide a detect checkpoint/YAML, or set yoloe_allow_seg_init=True."
+                )
+            detect_cfg_candidate = self._seg_source_to_detect_yaml(str(cfg_for_build))
+            try:
+                cfg_for_build = check_yaml(detect_cfg_candidate, hard=False) or check_yaml(
+                    Path(detect_cfg_candidate).name
+                )
+            except Exception as e:
+                raise ValueError(
+                    "YOLOE segmentation source detected, but failed to resolve matching detect YAML "
+                    f"('{detect_cfg_candidate}'). Please provide a valid YOLOE detect YAML/checkpoint."
+                ) from e
+            if RANK in {-1, 0}:
+                LOGGER.warning(
+                    "YOLOE segmentation source detected; constructing detect student from "
+                    f"'{cfg_for_build}' and loading intersected pretrained weights."
+                )
+        elif RANK in {-1, 0} and head_name:
+            LOGGER.info(f"YOLOE student source head='{head_name}' is compatible with detect pipeline.")
+
+        return str(cfg_for_build)
+
+    def _configure_yoloe_student_model(self, model: YOLOEModel) -> None:
+        if self.yoloe_prompt_mode != "fixed_text":
+            raise ValueError(
+                f"Unsupported yoloe_prompt_mode='{self.yoloe_prompt_mode}'. Only 'fixed_text' is currently supported."
+            )
+
+        dataset_names = self._normalize_names(self.data.get("names", {}))
+        class_names = self._parse_class_names(self._get_arg("yoloe_class_names", None)) or dataset_names
+        if not class_names:
+            raise ValueError("Unable to determine YOLOE class names. Please provide yoloe_class_names explicitly.")
+        if len(class_names) != int(self.data["nc"]):
+            raise ValueError(
+                f"YOLOE class count mismatch: got {len(class_names)} names {class_names}, but data.nc={self.data['nc']}."
+            )
+        if dataset_names and class_names != dataset_names:
+            raise ValueError(
+                "For fixed closed-set incremental experiments, yoloe_class_names must match data names order. "
+                f"Got yoloe_class_names={class_names}, data names={dataset_names}."
+            )
+
+        try:
+            text_embeddings = model.get_text_pe(class_names)
+            model.set_classes(class_names, text_embeddings)
+        except Exception as e:
+            raise RuntimeError(
+                "YOLOE fixed-text embedding injection failed while configuring student model. "
+                "Please verify checkpoint compatibility and text model dependencies."
+            ) from e
+
+        if RANK in {-1, 0}:
+            LOGGER.info(f"YOLOE student configured with fixed classes: {class_names}")
 
     @staticmethod
     def _to_list(path_or_paths: str | list[str]) -> list[str]:
@@ -140,6 +341,22 @@ class IncrementalDistillTrainer(DetectionTrainer):
         img_path = self._apply_slicing(img_path, mode)
         return super().build_dataset(img_path=img_path, mode=mode, batch=batch)
 
+    def get_model(self, cfg: str | None = None, weights: str | None = None, verbose: bool = True):
+        if self.student_arch != "yoloe":
+            return super().get_model(cfg=cfg, weights=weights, verbose=verbose)
+
+        cfg_for_build = self._validate_yoloe_student_source(cfg=cfg, weights=weights)
+        model = YOLOEModel(
+            cfg_for_build,
+            ch=self.data["channels"],
+            nc=self.data["nc"],
+            verbose=verbose and RANK == -1,
+        )
+        if weights:
+            model.load(weights)
+        self._configure_yoloe_student_model(model)
+        return model
+
     def get_validator(self):
         """Return DetectionValidator with extended loss columns."""
         self.loss_names = ("box_loss", "cls_loss", "dfl_loss", "distill_feat_loss", "distill_cls_loss")
@@ -174,13 +391,28 @@ class IncrementalDistillTrainer(DetectionTrainer):
         else:
             self.teacher_model = None
 
+        student_names = self._normalize_names(getattr(student, "names", None))
+        teacher_names = self._normalize_names(getattr(self.teacher_model, "names", None))
+        student_old_idx = self._resolve_class_index(
+            names=student_names,
+            class_name=self._get_arg("distill_student_old_class_name", None),
+            fallback_index=int(self._get_arg("distill_student_old_class", 0)),
+            scope="Student old class",
+        )
+        teacher_old_idx = self._resolve_class_index(
+            names=teacher_names,
+            class_name=self._get_arg("distill_teacher_old_class_name", None),
+            fallback_index=int(self._get_arg("distill_teacher_old_class", 0)),
+            scope="Teacher old class",
+        )
+
         distill_cfg = DistillationConfig(
             enabled=self.enable_distillation and self.teacher_model is not None,
             feature_weight=float(self._get_arg("distill_feature_weight", 1.0)),
             cls_weight=float(self._get_arg("distill_cls_weight", 1.0)),
             temperature=float(self._get_arg("distill_temperature", 1.0)),
-            student_old_class_index=int(self._get_arg("distill_student_old_class", 0)),
-            teacher_old_class_index=int(self._get_arg("distill_teacher_old_class", 0)),
+            student_old_class_index=student_old_idx,
+            teacher_old_class_index=teacher_old_idx,
         )
         student.criterion = DistillationLossWrapper(
             base_criterion=student.criterion,
@@ -202,7 +434,9 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 "Distillation setup complete: "
                 f"enabled={distill_cfg.enabled}, "
                 f"feature_w={distill_cfg.feature_weight}, "
-                f"cls_w={distill_cfg.cls_weight}"
+                f"cls_w={distill_cfg.cls_weight}, "
+                f"student_old_idx={distill_cfg.student_old_class_index}, "
+                f"teacher_old_idx={distill_cfg.teacher_old_class_index}"
             )
 
     def validate(self):

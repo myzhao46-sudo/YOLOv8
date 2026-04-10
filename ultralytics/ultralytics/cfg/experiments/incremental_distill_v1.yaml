@@ -5,6 +5,7 @@ mode: train
 
 # Student setup
 model: yolov8n.pt
+student_arch: auto # auto | yolov8 | yoloe
 data: ultralytics/cfg/datasets/ship_oiltank_joint.yaml
 epochs: 100
 batch: 16
@@ -29,6 +30,14 @@ distill_cls_weight: 1.0
 distill_temperature: 1.0
 distill_student_old_class: 0
 distill_teacher_old_class: 0
+distill_student_old_class_name:
+distill_teacher_old_class_name:
+
+# YOLOE fixed-text closed-set options (used only when student_arch=yoloe)
+# For incremental ship/oiltank experiments, keep class order aligned with dataset names.
+yoloe_prompt_mode: fixed_text
+yoloe_class_names:
+yoloe_allow_seg_init: True # allow non-prompt-free yoloe-*-seg.pt as detect-student initialization
 
 # Replay (v1 interface)
 enable_replay: False

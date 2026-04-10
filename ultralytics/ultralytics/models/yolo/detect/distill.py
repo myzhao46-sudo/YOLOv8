@@ -167,7 +167,9 @@ class DistillationLossWrapper:
 
         student_preds = self._parse_preds(preds)
         if not student_preds:
-            return base_total_loss, torch.cat((base_items, distill_items))
+            raise RuntimeError(
+                "Distillation is enabled but student predictions could not be parsed into the expected dict format."
+            )
 
         teacher_device, teacher_dtype = self._model_device_dtype(
             self.teacher_model,
@@ -181,6 +183,23 @@ class DistillationLossWrapper:
         with torch.no_grad():
             teacher_out = self.teacher_model(teacher_img)
             teacher_preds = self._parse_preds(teacher_out)
+        if not teacher_preds:
+            raise RuntimeError(
+                "Distillation is enabled but teacher predictions could not be parsed into the expected dict format."
+            )
+
+        if self.cfg.feature_weight > 0 and (
+            not isinstance(student_preds.get("feats", None), list) or not isinstance(teacher_preds.get("feats", None), list)
+        ):
+            raise RuntimeError(
+                "Feature distillation requires both student and teacher predictions to include list-type 'feats'."
+            )
+        if self.cfg.cls_weight > 0 and (
+            student_preds.get("scores", None) is None or teacher_preds.get("scores", None) is None
+        ):
+            raise RuntimeError(
+                "Classification distillation requires both student and teacher predictions to include 'scores'."
+            )
 
         feat_loss = self._feature_distill_loss(student_preds, teacher_preds, device=base_total_loss.device)
         cls_loss = self._cls_distill_loss(student_preds, teacher_preds, device=base_total_loss.device)
