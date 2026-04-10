@@ -430,8 +430,20 @@ class IncrementalDistillTrainer(DetectionTrainer):
         super()._setup_train()
         self._attach_distillation_criterion()
 
+    def _ensure_loss_model_attrs(self, model: Any) -> None:
+        """Ensure model has runtime attributes required by detection loss initialization."""
+        if model is None:
+            return
+        # v8DetectionLoss reads model.args (box/cls/dfl and related hparams) via attribute access.
+        model.args = self.args
+        if getattr(model, "nc", None) is None:
+            model.nc = self.data.get("nc", None)
+        if getattr(model, "names", None) in (None, {}, []):
+            model.names = self.data.get("names", None)
+
     def _attach_distillation_criterion(self) -> None:
         student = unwrap_model(self.model)
+        self._ensure_loss_model_attrs(student)
         if getattr(student, "criterion", None) is None:
             student.criterion = student.init_criterion()
 
@@ -473,6 +485,7 @@ class IncrementalDistillTrainer(DetectionTrainer):
         )
         if self.ema and getattr(self.ema, "ema", None) is not None:
             ema_model = unwrap_model(self.ema.ema)
+            self._ensure_loss_model_attrs(ema_model)
             if getattr(ema_model, "criterion", None) is None:
                 ema_model.criterion = ema_model.init_criterion()
             ema_model.criterion = DistillationLossWrapper(
