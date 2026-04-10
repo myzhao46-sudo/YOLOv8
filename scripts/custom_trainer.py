@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from copy import copy, deepcopy
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -181,6 +183,9 @@ class EWC_DetectionTrainer(DetectionTrainer):
 
     def _run_extra_validations(self) -> dict[str, float]:
         model_for_eval = self.ema.ema if self.ema else unwrap_model(self.model)
+        return self._run_extra_validations_with_model(model_for_eval=model_for_eval, save_prefix="val")
+
+    def _run_extra_validations_with_model(self, model_for_eval, save_prefix: str = "val") -> dict[str, float]:
         results = {}
         for tag, data_yaml in self._extra_eval_data.items():
             if not data_yaml:
@@ -197,11 +202,14 @@ class EWC_DetectionTrainer(DetectionTrainer):
 
             validator = yolo.detect.DetectionValidator(
                 dataloader=None,
-                save_dir=self.save_dir / f"val_{tag}",
+                save_dir=self.save_dir / f"{save_prefix}_{tag}",
                 args=args,
                 _callbacks=self.callbacks,
             )
-            eval_model = deepcopy(unwrap_model(model_for_eval)).eval()
+            if isinstance(model_for_eval, (str, Path)):
+                eval_model = str(model_for_eval)
+            else:
+                eval_model = deepcopy(unwrap_model(model_for_eval)).eval()
             stats = validator(model=eval_model)
             if not isinstance(stats, dict):
                 continue
@@ -210,6 +218,33 @@ class EWC_DetectionTrainer(DetectionTrainer):
                     continue
                 results[f"{tag}/{k}"] = round(float(v), 5)
         return results
+
+    def final_eval(self):
+        super().final_eval()
+        if not any(self._extra_eval_data.values()):
+            return
+
+        best_model = self.best if self.best.exists() else self.last if self.last.exists() else None
+        if not best_model:
+            return
+
+        LOGGER.info(f"[EWC][FINAL] running old/new/joint eval on checkpoint: {best_model}")
+        extra_metrics = self._run_extra_validations_with_model(model_for_eval=best_model, save_prefix="final_val")
+        if not extra_metrics:
+            return
+
+        self.metrics = self.metrics or {}
+        self.metrics.update(extra_metrics)
+        for tag in ("old", "new", "joint"):
+            m50 = extra_metrics.get(f"{tag}/metrics/mAP50(B)")
+            m95 = extra_metrics.get(f"{tag}/metrics/mAP50-95(B)")
+            if m50 is not None or m95 is not None:
+                LOGGER.info(f"[EWC][FINAL] {tag}: mAP50={m50}, mAP50-95={m95}")
+
+        summary_path = self.save_dir / "final_extra_metrics.json"
+        with summary_path.open("w", encoding="utf-8") as f:
+            json.dump(extra_metrics, f, ensure_ascii=False, indent=2)
+        LOGGER.info(f"[EWC][FINAL] saved extra metrics -> {summary_path}")
 
     def compute_ewc_loss(self) -> torch.Tensor:
         if self.lambda_ewc <= 0 or not self._ewc_matched:
