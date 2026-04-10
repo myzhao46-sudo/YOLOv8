@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from copy import copy
 from dataclasses import replace
@@ -13,7 +14,7 @@ from ultralytics.models import yolo
 from ultralytics.models.yolo.detect.train import DetectionTrainer
 from ultralytics.models.yolo.detect.distill import DistillationConfig, DistillationLossWrapper, load_teacher_model
 from ultralytics.data.sliding_window import SliceConfig, prepare_sliced_image_paths
-from ultralytics.nn.tasks import YOLOEModel
+from ultralytics.nn.tasks import YOLOEModel, yaml_model_load
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, YAML
 from ultralytics.utils.checks import check_yaml
 from ultralytics.utils.torch_utils import unwrap_model
@@ -205,13 +206,59 @@ class IncrementalDistillTrainer(DetectionTrainer):
         return str(src_path.with_name(f"{detect_stem}.yaml"))
 
     @staticmethod
+    def _extract_yoloe_scale(stem: str) -> str:
+        """Extract YOLOE scale char from a model stem, e.g. yoloe-26n-seg -> n."""
+        stem = stem.lower()
+        stem = stem.replace("-seg-pf", "").replace("-seg-det", "").replace("-seg", "")
+        m = re.match(r"^yoloe-(?:v8|11|26)([nslmx])$", stem)
+        return m.group(1) if m else ""
+
+    @staticmethod
+    def _family_yoloe_yaml_from_stem(stem: str) -> str:
+        """Map YOLOE stem to existing family YAML names in this repository."""
+        stem = stem.lower()
+        if "yoloe-v8" in stem:
+            return "yoloe-v8.yaml"
+        if "yoloe-11" in stem:
+            return "yoloe-11.yaml"
+        if "yoloe-26" in stem:
+            return "yoloe-26.yaml"
+        return ""
+
+    @classmethod
+    def _resolve_detect_yaml_from_sources(cls, sources: list[str]) -> str:
+        """Resolve a real detect YAML path from model/cfg source hints."""
+        candidates = []
+        for src in sources:
+            if not src:
+                continue
+            stem = Path(str(src)).stem.lower()
+            direct = cls._seg_source_to_detect_yaml(stem)
+            candidates.append(Path(direct).name)
+            family = cls._family_yoloe_yaml_from_stem(stem)
+            if family:
+                candidates.append(family)
+
+        seen = set()
+        deduped = [x for x in candidates if not (x in seen or seen.add(x))]
+        for cand in deduped:
+            resolved = check_yaml(cand, hard=False)
+            if resolved:
+                return str(resolved)
+
+        raise ValueError(
+            "YOLOE segmentation source detected, but failed to resolve matching detect YAML from candidates: "
+            f"{deduped}. Existing YOLOE detect YAML families are: ['yoloe-v8.yaml', 'yoloe-11.yaml', 'yoloe-26.yaml']."
+        )
+
+    @staticmethod
     def _is_seg_source_stem(stem: str) -> bool:
         """Return True for segmentation sources, excluding explicit '-seg-det' detect-converted checkpoints."""
         stem = stem.lower()
         return "-seg" in stem and "-seg-det" not in stem
 
-    def _validate_yoloe_student_source(self, cfg: str | dict | None, weights: Any) -> str:
-        """Validate YOLOE source and return the detect-model cfg used to build YOLOEModel."""
+    def _validate_yoloe_student_source(self, cfg: str | dict | None, weights: Any) -> str | dict[str, Any]:
+        """Validate YOLOE source and return cfg (str or dict) used to build YOLOEModel."""
         allow_seg_init = self._get_bool("yoloe_allow_seg_init", default=True)
 
         model_ref = str(getattr(self.args, "model", "") or "")
@@ -241,7 +288,7 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 "YOLOE '-seg.pt' checkpoint for detect-initialization."
             )
 
-        cfg_for_build = cfg_ref or model_ref
+        cfg_for_build: str | dict[str, Any] = cfg if isinstance(cfg, dict) else (cfg_ref or model_ref)
         if not cfg_for_build:
             raise ValueError("Unable to determine YOLOE cfg for student construction.")
 
@@ -251,25 +298,30 @@ class IncrementalDistillTrainer(DetectionTrainer):
                     "YOLOE segmentation source detected but yoloe_allow_seg_init=False. "
                     "Provide a detect checkpoint/YAML, or set yoloe_allow_seg_init=True."
                 )
-            detect_cfg_candidate = self._seg_source_to_detect_yaml(str(cfg_for_build))
+            detect_yaml = self._resolve_detect_yaml_from_sources([str(cfg_ref or ""), model_ref])
+            scale = self._extract_yoloe_scale(model_stem) or self._extract_yoloe_scale(cfg_stem) or (
+                str(cfg.get("scale", "")) if isinstance(cfg, dict) else ""
+            )
             try:
-                cfg_for_build = check_yaml(detect_cfg_candidate, hard=False) or check_yaml(
-                    Path(detect_cfg_candidate).name
-                )
+                detect_cfg = yaml_model_load(detect_yaml)
             except Exception as e:
                 raise ValueError(
                     "YOLOE segmentation source detected, but failed to resolve matching detect YAML "
-                    f"('{detect_cfg_candidate}'). Please provide a valid YOLOE detect YAML/checkpoint."
+                    f"('{detect_yaml}'). Please provide a valid YOLOE detect YAML/checkpoint."
                 ) from e
+            # Keep the original scale (n/s/m/l/x) from checkpoint stem when YAML uses family naming (e.g. yoloe-26.yaml).
+            if scale:
+                detect_cfg["scale"] = scale
+            cfg_for_build = detect_cfg
             if RANK in {-1, 0}:
                 LOGGER.warning(
                     "YOLOE segmentation source detected; constructing detect student from "
-                    f"'{cfg_for_build}' and loading intersected pretrained weights."
+                    f"'{detect_yaml}' (scale='{detect_cfg.get('scale', '')}') and loading intersected pretrained weights."
                 )
         elif RANK in {-1, 0} and head_name:
             LOGGER.info(f"YOLOE student source head='{head_name}' is compatible with detect pipeline.")
 
-        return str(cfg_for_build)
+        return cfg_for_build
 
     def _configure_yoloe_student_model(self, model: YOLOEModel) -> None:
         if self.yoloe_prompt_mode != "fixed_text":
