@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import importlib.util
 import re
 from copy import deepcopy
 from copy import copy
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
+
+import torch
 
 from ultralytics.data.utils import check_det_dataset
 from ultralytics.models import yolo
@@ -48,6 +51,7 @@ class IncrementalDistillTrainer(DetectionTrainer):
         "yoloe_class_names",
         "yoloe_prompt_mode",
         "yoloe_allow_seg_init",
+        "yoloe_zero_embedding_fallback",
         "distill_student_old_class_name",
         "distill_teacher_old_class_name",
     }
@@ -225,26 +229,88 @@ class IncrementalDistillTrainer(DetectionTrainer):
             return "yoloe-26.yaml"
         return ""
 
+    @staticmethod
+    def _yaml_module_name(entry: Any) -> str:
+        if isinstance(entry, (list, tuple)) and len(entry) >= 3:
+            return str(entry[2]).lower()
+        return ""
+
     @classmethod
-    def _resolve_detect_yaml_from_sources(cls, sources: list[str]) -> str:
-        """Resolve a real detect YAML path from model/cfg source hints."""
+    def _family_yoloe_yaml_from_cfg_dict(cls, cfg_dict: dict[str, Any] | None) -> str:
+        """Infer YOLOE family detect YAML from parsed cfg dictionary when filename hints are unavailable."""
+        if not isinstance(cfg_dict, dict):
+            return ""
+        head = cfg_dict.get("head", []) or []
+        backbone = cfg_dict.get("backbone", []) or []
+        head_mods = [cls._yaml_module_name(x) for x in head]
+        backbone_mods = [cls._yaml_module_name(x) for x in backbone]
+
+        if head:
+            last = head[-1]
+            if isinstance(last, (list, tuple)) and len(last) >= 1:
+                from_idx = last[0]
+                if from_idx == [15, 18, 21]:
+                    return "yoloe-v8.yaml"
+
+        if any("yoloesegment26" in m for m in head_mods):
+            return "yoloe-26.yaml"
+        if any("c2f" in m for m in backbone_mods + head_mods):
+            return "yoloe-v8.yaml"
+        if any("c3k2" in m for m in backbone_mods + head_mods):
+            if (
+                bool(cfg_dict.get("end2end", False))
+                or str(cfg_dict.get("text_model", "")).startswith("mobileclip2")
+                or int(cfg_dict.get("reg_max", 16)) == 1
+            ):
+                return "yoloe-26.yaml"
+            return "yoloe-11.yaml"
+        return ""
+
+    @staticmethod
+    def _resolve_existing_yaml(candidates: list[str]) -> str:
+        seen = set()
+        for cand in candidates:
+            if not cand or cand in seen:
+                continue
+            seen.add(cand)
+            resolved = check_yaml(cand, hard=False)
+            if resolved:
+                return str(resolved)
+        return ""
+
+    def _resolve_detect_yaml_from_sources(
+        self,
+        sources: list[str],
+        *,
+        weights: Any = None,
+        cfg: dict[str, Any] | None = None,
+    ) -> str:
+        """Resolve a real detect YAML path from source hints and loaded YOLOE metadata."""
         candidates = []
         for src in sources:
             if not src:
                 continue
             stem = Path(str(src)).stem.lower()
-            direct = cls._seg_source_to_detect_yaml(stem)
+            direct = self._seg_source_to_detect_yaml(stem)
             candidates.append(Path(direct).name)
-            family = cls._family_yoloe_yaml_from_stem(stem)
+            family = self._family_yoloe_yaml_from_stem(stem)
             if family:
                 candidates.append(family)
 
-        seen = set()
-        deduped = [x for x in candidates if not (x in seen or seen.add(x))]
-        for cand in deduped:
-            resolved = check_yaml(cand, hard=False)
-            if resolved:
-                return str(resolved)
+        cfg_family = self._family_yoloe_yaml_from_cfg_dict(cfg)
+        if cfg_family:
+            candidates.append(cfg_family)
+
+        if weights is not None:
+            w_yaml = getattr(weights, "yaml", None)
+            w_family = self._family_yoloe_yaml_from_cfg_dict(w_yaml if isinstance(w_yaml, dict) else None)
+            if w_family:
+                candidates.append(w_family)
+
+        deduped = [x for i, x in enumerate(candidates) if x and x not in candidates[:i]]
+        resolved = self._resolve_existing_yaml(deduped)
+        if resolved:
+            return resolved
 
         raise ValueError(
             "YOLOE segmentation source detected, but failed to resolve matching detect YAML from candidates: "
@@ -280,6 +346,12 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 raise ValueError(
                     f"Loaded YOLOE checkpoint task='{w_task}' is incompatible with this incremental detect pipeline."
                 )
+            if RANK in {-1, 0}:
+                LOGGER.info(
+                    "YOLOE source probe: "
+                    f"model='{model_ref}', cfg_ref='{cfg_ref}', task='{w_task}', head='{head_name or 'unknown'}', "
+                    f"seg_source={seg_source}, prompt_free={seg_pf_source}"
+                )
 
         if seg_pf_source:
             raise ValueError(
@@ -298,7 +370,11 @@ class IncrementalDistillTrainer(DetectionTrainer):
                     "YOLOE segmentation source detected but yoloe_allow_seg_init=False. "
                     "Provide a detect checkpoint/YAML, or set yoloe_allow_seg_init=True."
                 )
-            detect_yaml = self._resolve_detect_yaml_from_sources([str(cfg_ref or ""), model_ref])
+            detect_yaml = self._resolve_detect_yaml_from_sources(
+                [str(cfg_ref or ""), model_ref],
+                weights=weights,
+                cfg=cfg if isinstance(cfg, dict) else None,
+            )
             scale = self._extract_yoloe_scale(model_stem) or self._extract_yoloe_scale(cfg_stem) or (
                 str(cfg.get("scale", "")) if isinstance(cfg, dict) else ""
             )
@@ -323,6 +399,13 @@ class IncrementalDistillTrainer(DetectionTrainer):
 
         return cfg_for_build
 
+    @staticmethod
+    def _build_zero_text_embeddings(model: YOLOEModel, class_count: int) -> torch.Tensor:
+        head = model.model[-1] if hasattr(model, "model") and len(model.model) else None
+        embed_dim = int(getattr(head, "embed", 512))
+        device = next(model.parameters()).device
+        return torch.zeros((1, class_count, embed_dim), device=device, dtype=torch.float32)
+
     def _configure_yoloe_student_model(self, model: YOLOEModel) -> None:
         if self.yoloe_prompt_mode != "fixed_text":
             raise ValueError(
@@ -343,17 +426,44 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 f"Got yoloe_class_names={class_names}, data names={dataset_names}."
             )
 
+        allow_zero_fallback = self._get_bool("yoloe_zero_embedding_fallback", default=True)
+        used_fallback = False
         try:
+            has_clip = importlib.util.find_spec("clip") is not None
+            if not has_clip and allow_zero_fallback:
+                raise ModuleNotFoundError("clip")
             text_embeddings = model.get_text_pe(class_names)
-            model.set_classes(class_names, text_embeddings)
         except Exception as e:
+            if not allow_zero_fallback:
+                raise RuntimeError(
+                    "YOLOE fixed-text embedding injection failed while configuring student model. "
+                    "Please verify checkpoint compatibility and text model dependencies."
+                ) from e
+            text_embeddings = self._build_zero_text_embeddings(model, class_count=len(class_names))
+            used_fallback = True
+            if RANK in {-1, 0}:
+                LOGGER.warning(
+                    "YOLOE fixed-text embedding injection failed; using zero-embedding fallback "
+                    f"(class_count={len(class_names)}, error={type(e).__name__}: {e}). "
+                    "This keeps pipeline runnable but may degrade YOLOE prompt quality."
+                )
+
+        model.set_classes(class_names, text_embeddings)
+        configured_names = self._normalize_names(getattr(model, "names", None))
+        if configured_names != class_names:
             raise RuntimeError(
-                "YOLOE fixed-text embedding injection failed while configuring student model. "
-                "Please verify checkpoint compatibility and text model dependencies."
-            ) from e
+                "YOLOE fixed-text class injection mismatch after set_classes. "
+                f"expected={class_names}, got={configured_names}"
+            )
+        has_pe = hasattr(model, "pe")
+        pe_shape = tuple(getattr(model, "pe").shape) if has_pe else None
 
         if RANK in {-1, 0}:
-            LOGGER.info(f"YOLOE student configured with fixed classes: {class_names}")
+            LOGGER.info(
+                "YOLOE student configured with fixed classes: "
+                f"{class_names} | embedding_mode={'zero_fallback' if used_fallback else 'text'} | "
+                f"has_pe={has_pe} | pe_shape={pe_shape}"
+            )
 
     @staticmethod
     def _to_list(path_or_paths: str | list[str]) -> list[str]:
@@ -495,13 +605,15 @@ class IncrementalDistillTrainer(DetectionTrainer):
             )
 
         if RANK in {-1, 0}:
+            student_head = getattr(getattr(student, "model", None), "__getitem__", lambda x: None)(-1)
             LOGGER.info(
                 "Distillation setup complete: "
                 f"enabled={distill_cfg.enabled}, "
                 f"feature_w={distill_cfg.feature_weight}, "
                 f"cls_w={distill_cfg.cls_weight}, "
                 f"student_old_idx={distill_cfg.student_old_class_index}, "
-                f"teacher_old_idx={distill_cfg.teacher_old_class_index}"
+                f"teacher_old_idx={distill_cfg.teacher_old_class_index}, "
+                f"student_head={student_head.__class__.__name__.lower() if student_head is not None else 'unknown'}"
             )
 
     def validate(self):
