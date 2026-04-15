@@ -33,7 +33,7 @@ if LOCAL_ULTRALYTICS_ROOT.exists():
 from ultralytics import YOLO
 
 
-DEFAULT_MODEL = Path(r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\ultralytics\pretrain\best.pt")
+DEFAULT_MODEL = Path(r"C:\Users\DOCTOR\Desktop\yoloe-v8-s_distill_noreplay_300\yoloe-v8-s_distill_noreplay_300.pt")
 DEFAULT_DATASET_ROOT = Path(r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\datasets\oiltank")
 
 
@@ -55,7 +55,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-class-id", type=int, default=None, help="Override predicted class id in model output")
     parser.add_argument("--gt-class-id", type=int, default=None, help="Override GT class id in label txt")
     parser.add_argument("--imgsz", type=int, default=640)
-    parser.add_argument("--conf", type=float, default=0.001, help="Predict conf threshold")
+    parser.add_argument("--conf", type=float, default=0.1, help="Predict conf threshold")
     parser.add_argument("--iou", type=float, default=0.5, help="IoU threshold for TP match")
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--batch", type=int, default=8)
