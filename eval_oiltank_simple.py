@@ -34,7 +34,7 @@ from ultralytics import YOLO
 
 
 DEFAULT_MODEL = Path(r"C:\Users\DOCTOR\Desktop\yoloe-v8-s_distill_noreplay_300\yoloe-v8-s_distill_noreplay_300.pt")
-DEFAULT_DATASET_ROOT = Path(r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\datasets\oiltank")
+DEFAULT_DATASET_ROOT = Path(r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\datasets\SSDD")
 
 
 def print_section(title: str) -> None:
@@ -51,7 +51,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL, help="Checkpoint path (.pt)")
     parser.add_argument("--dataset-root", type=Path, default=DEFAULT_DATASET_ROOT, help="Dataset root with images/labels")
     parser.add_argument("--split", type=str, default="val", choices=["train", "val", "test"], help="Dataset split")
-    parser.add_argument("--target-class", type=str, default="oiltank", help="Target class name")
+    parser.add_argument(
+        "--target-class",
+        type=str,
+        default=None,
+        help="Target class name. If omitted, script will auto-infer from dataset root/name hints.",
+    )
     parser.add_argument("--model-class-id", type=int, default=None, help="Override predicted class id in model output")
     parser.add_argument("--gt-class-id", type=int, default=None, help="Override GT class id in label txt")
     parser.add_argument("--imgsz", type=int, default=640)
@@ -156,6 +161,29 @@ def resolve_gt_class_id(unique_label_ids: list[int], model_class_id: int | None,
     if model_class_id is not None and model_class_id in ids:
         return model_class_id
     return ids[0]
+
+
+def infer_target_class(dataset_root: Path, unique_label_ids: list[int], model_names: Any) -> str | None:
+    """
+    Best-effort target-class inference for convenience.
+    Priority:
+    1) dataset root name hints (oiltank/ship/ssdd)
+    2) single GT class id -> same index in model.names (if available)
+    """
+    stem = dataset_root.name.lower()
+    if "oiltank" in stem or "oil_tank" in stem or "tank" in stem:
+        return "oiltank"
+    if "ssdd" in stem or "ship" in stem:
+        return "ship"
+
+    ids = sorted(set(unique_label_ids))
+    if len(ids) == 1:
+        idx = ids[0]
+        if isinstance(model_names, dict) and idx in model_names:
+            return str(model_names[idx])
+        if isinstance(model_names, (list, tuple)) and 0 <= idx < len(model_names):
+            return str(model_names[idx])
+    return None
 
 
 def prepare_yoloe_inference_if_needed(model: YOLO) -> None:
@@ -446,7 +474,7 @@ def main() -> None:
     print(f"- model: {args.model}")
     print(f"- dataset_root: {args.dataset_root}")
     print(f"- split: {args.split}")
-    print(f"- target_class: {args.target_class}")
+    print(f"- target_class (input): {args.target_class}")
     print(f"- device: {args.device}")
 
     image_dir = args.dataset_root / "images" / args.split
@@ -476,14 +504,24 @@ def main() -> None:
     print(f"- model.names: {model_names}")
     prepare_yoloe_inference_if_needed(model)
 
-    model_class_id = args.model_class_id if args.model_class_id is not None else resolve_model_class_id(model_names, args.target_class)
+    target_class = args.target_class
+    if target_class is None:
+        target_class = infer_target_class(args.dataset_root, unique_label_ids, model_names)
+        print(f"- target_class (auto-inferred): {target_class}")
+    if not target_class:
+        raise RuntimeError(
+            "Unable to infer target class automatically. "
+            "Please pass --target-class explicitly (e.g. ship or oiltank)."
+        )
+
+    model_class_id = args.model_class_id if args.model_class_id is not None else resolve_model_class_id(model_names, target_class)
     gt_class_id = resolve_gt_class_id(unique_label_ids, model_class_id, args.gt_class_id)
 
     print(f"- resolved model target class id: {model_class_id}")
     print(f"- resolved GT target class id: {gt_class_id}")
     if model_class_id is None:
         raise RuntimeError(
-            f"Cannot resolve model class id for target '{args.target_class}'. "
+            f"Cannot resolve model class id for target '{target_class}'. "
             "Try changing --target-class or check model.names."
         )
     if gt_class_id is None:
@@ -492,7 +530,7 @@ def main() -> None:
             "Try passing --gt-class-id explicitly."
         )
 
-    runtime_yaml = write_runtime_yaml(args.dataset_root, label_ids, args.target_class)
+    runtime_yaml = write_runtime_yaml(args.dataset_root, label_ids, target_class or "target")
 
     if not args.skip_official_val:
         _ok, _metrics = try_official_val(
@@ -519,7 +557,7 @@ def main() -> None:
     )
 
     print_section("Final Result (Target Class)")
-    print(f"- target class: {args.target_class}")
+    print(f"- target class: {target_class}")
     print(f"- split: {args.split}")
     print(f"- GT instances: {int(manual['gt_instances'])}")
     print(f"- TP / FP / FN: {int(manual['tp'])} / {int(manual['fp'])} / {int(manual['fn'])}")
