@@ -22,6 +22,11 @@ class DistillationConfig:
     temperature: float = 1.0
     student_old_class_index: int = 0
     teacher_old_class_index: int = 0
+    cls_only_old_classes: bool = True
+    student_old_class_indices: tuple[int, ...] = ()
+    teacher_old_class_indices: tuple[int, ...] = ()
+    feature_mode: str = "global"  # global | old_only
+    feature_old_score_thresh: float = 0.3
 
 
 def load_teacher_model(weights: str, device: torch.device) -> torch.nn.Module:
@@ -88,6 +93,61 @@ class DistillationLossWrapper:
             return b.device, b.dtype
         return fallback_device, fallback_dtype
 
+    @staticmethod
+    def _resolve_class_indices(
+        requested: tuple[int, ...] | list[int] | None,
+        class_count: int,
+        fallback_index: int,
+    ) -> list[int]:
+        if class_count <= 0:
+            return []
+        indices = list(requested) if requested else [fallback_index]
+        resolved = []
+        for idx in indices:
+            idx = min(max(int(idx), 0), class_count - 1)
+            if idx not in resolved:
+                resolved.append(idx)
+        return resolved
+
+    def _build_teacher_old_prob_maps(
+        self,
+        teacher_preds: dict[str, torch.Tensor],
+        feature_shapes: list[tuple[int, int]],
+        *,
+        device: torch.device,
+        dtype: torch.dtype,
+    ) -> list[torch.Tensor] | None:
+        t_scores = teacher_preds.get("scores", None)
+        if not isinstance(t_scores, torch.Tensor) or t_scores.ndim < 3:
+            return None
+
+        old_ids = self._resolve_class_indices(
+            self.cfg.teacher_old_class_indices,
+            class_count=t_scores.shape[1],
+            fallback_index=self.cfg.teacher_old_class_index,
+        )
+        if not old_ids:
+            return None
+
+        old_prob = torch.sigmoid(t_scores[:, old_ids, :].detach()).amax(dim=1, keepdim=True).to(device=device, dtype=dtype)
+        expected_points = sum(h * w for h, w in feature_shapes)
+        if expected_points <= 0:
+            return None
+
+        if old_prob.shape[-1] < expected_points:
+            old_prob = F.pad(old_prob, (0, expected_points - old_prob.shape[-1]))
+
+        start = 0
+        maps = []
+        for h, w in feature_shapes:
+            points = h * w
+            chunk = old_prob[..., start : start + points]
+            if chunk.shape[-1] < points:
+                chunk = F.pad(chunk, (0, points - chunk.shape[-1]))
+            maps.append(chunk.reshape(old_prob.shape[0], 1, h, w))
+            start += points
+        return maps
+
     def _feature_distill_loss(
         self,
         student_preds: dict[str, torch.Tensor],
@@ -99,20 +159,55 @@ class DistillationLossWrapper:
         if not isinstance(sf, list) or not isinstance(tf, list) or not sf or not tf:
             return torch.zeros((), device=self._infer_device(student_preds, fallback=device))
 
+        feature_mode = str(self.cfg.feature_mode).strip().lower()
+        use_old_only = feature_mode == "old_only"
         loss = 0.0
         n = min(len(sf), len(tf))
+        old_prob_maps = None
+        if use_old_only:
+            teacher_shapes = [(int(tf[i].shape[-2]), int(tf[i].shape[-1])) for i in range(n)]
+            old_prob_maps = self._build_teacher_old_prob_maps(
+                teacher_preds,
+                teacher_shapes,
+                device=self._infer_device(student_preds, fallback=device),
+                dtype=sf[0].dtype,
+            )
+            if not old_prob_maps:
+                return torch.zeros((), device=self._infer_device(student_preds, fallback=device), dtype=sf[0].dtype)
+
+        valid_levels = 0
         for i in range(n):
             s = sf[i]
             t = tf[i].detach()
+            mask = None
+            if old_prob_maps is not None and i < len(old_prob_maps):
+                mask = old_prob_maps[i]
             if s.shape[-2:] != t.shape[-2:]:
                 t = F.interpolate(t, size=s.shape[-2:], mode="bilinear", align_corners=False)
+            if mask is not None and mask.shape[-2:] != s.shape[-2:]:
+                mask = F.interpolate(mask, size=s.shape[-2:], mode="nearest")
             c = min(s.shape[1], t.shape[1])
             s = s[:, :c]
             t = t[:, :c]
             if t.dtype != s.dtype:
                 t = t.to(dtype=s.dtype)
-            loss = loss + F.mse_loss(s, t)
-        return loss / max(n, 1)
+
+            if use_old_only and mask is None:
+                continue
+            if mask is None:
+                loss = loss + F.mse_loss(s, t)
+                valid_levels += 1
+                continue
+
+            m = (mask >= float(self.cfg.feature_old_score_thresh)).to(dtype=s.dtype)
+            m = m.expand(-1, c, -1, -1)
+            denom = m.sum()
+            if denom.item() < 1:
+                continue
+            loss = loss + ((s - t).square() * m).sum() / denom
+            valid_levels += 1
+
+        return loss / max(valid_levels, 1)
 
     def _cls_distill_loss(
         self,
@@ -125,14 +220,35 @@ class DistillationLossWrapper:
         if s_scores is None or t_scores is None:
             return torch.zeros((), device=self._infer_device(student_preds, fallback=device))
 
-        s_idx = min(max(self.cfg.student_old_class_index, 0), s_scores.shape[1] - 1)
-        if t_scores.shape[1] == 1:
-            t_idx = 0
+        if self.cfg.cls_only_old_classes:
+            s_ids = self._resolve_class_indices(
+                self.cfg.student_old_class_indices,
+                class_count=s_scores.shape[1],
+                fallback_index=self.cfg.student_old_class_index,
+            )
+            if t_scores.shape[1] == 1:
+                t_ids = [0] * len(s_ids)
+            else:
+                t_ids = self._resolve_class_indices(
+                    self.cfg.teacher_old_class_indices,
+                    class_count=t_scores.shape[1],
+                    fallback_index=self.cfg.teacher_old_class_index,
+                )
+                if len(t_ids) == 1 and len(s_ids) > 1:
+                    t_ids = t_ids * len(s_ids)
+            pair_count = min(len(s_ids), len(t_ids))
+            if pair_count == 0:
+                return torch.zeros((), device=self._infer_device(student_preds, fallback=device))
+            s_logits = [s_scores[:, s_ids[i], :] for i in range(pair_count)]
+            t_logits = [t_scores[:, t_ids[i], :] for i in range(pair_count)]
+            s_logit = torch.cat(s_logits, dim=0)
+            t_logit = torch.cat(t_logits, dim=0)
         else:
-            t_idx = min(max(self.cfg.teacher_old_class_index, 0), t_scores.shape[1] - 1)
-
-        s_logit = s_scores[:, s_idx, :]
-        t_logit = t_scores[:, t_idx, :]
+            n_cls = min(s_scores.shape[1], t_scores.shape[1])
+            if n_cls <= 0:
+                return torch.zeros((), device=self._infer_device(student_preds, fallback=device))
+            s_logit = s_scores[:, :n_cls, :]
+            t_logit = t_scores[:, :n_cls, :]
         if s_logit.shape[-1] != t_logit.shape[-1]:
             n = min(s_logit.shape[-1], t_logit.shape[-1])
             s_logit = s_logit[..., :n]
@@ -193,6 +309,12 @@ class DistillationLossWrapper:
         ):
             raise RuntimeError(
                 "Feature distillation requires both student and teacher predictions to include list-type 'feats'."
+            )
+        if self.cfg.feature_weight > 0 and str(self.cfg.feature_mode).strip().lower() == "old_only" and (
+            student_preds.get("scores", None) is None or teacher_preds.get("scores", None) is None
+        ):
+            raise RuntimeError(
+                "Feature distill mode='old_only' requires both student and teacher predictions to include 'scores'."
             )
         if self.cfg.cls_weight > 0 and (
             student_preds.get("scores", None) is None or teacher_preds.get("scores", None) is None

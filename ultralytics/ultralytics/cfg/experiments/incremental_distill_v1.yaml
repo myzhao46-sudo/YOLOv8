@@ -25,9 +25,14 @@ experiment_mode: distill_only
 # Distillation
 enable_distillation: True
 teacher_weights: ultralytics/runs/detect/ship_teacher/weights/best.pt
-distill_feature_weight: 1.0
-distill_cls_weight: 1.0
-distill_temperature: 1.0
+distill_feature_weight: 0.25
+distill_cls_weight: 0.5
+distill_temperature: 2.0
+distill_only_old_classes: True
+distill_old_class_ids: [0]
+distill_teacher_old_class_ids: [0]
+distill_feature_mode: old_only # global | old_only
+distill_feature_old_score_thr: 0.3
 distill_student_old_class: 0
 distill_teacher_old_class: 0
 distill_student_old_class_name:
@@ -37,6 +42,7 @@ distill_teacher_old_class_name:
 # For incremental ship/oiltank experiments, keep class order aligned with dataset names.
 yoloe_prompt_mode: fixed_text
 yoloe_class_names:
+yoloe_prompt_alias_names:
 yoloe_allow_seg_init: True # allow non-prompt-free yoloe-*-seg.pt as detect-student initialization
 
 # Replay (v1 interface)

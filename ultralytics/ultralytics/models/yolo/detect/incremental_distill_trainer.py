@@ -35,6 +35,11 @@ class IncrementalDistillTrainer(DetectionTrainer):
         "distill_feature_weight",
         "distill_cls_weight",
         "distill_temperature",
+        "distill_only_old_classes",
+        "distill_old_class_ids",
+        "distill_teacher_old_class_ids",
+        "distill_feature_mode",
+        "distill_feature_old_score_thr",
         "distill_student_old_class",
         "distill_teacher_old_class",
         "old_val_data",
@@ -49,6 +54,7 @@ class IncrementalDistillTrainer(DetectionTrainer):
         "slice_cache_dir",
         "student_arch",
         "yoloe_class_names",
+        "yoloe_prompt_alias_names",
         "yoloe_prompt_mode",
         "yoloe_allow_seg_init",
         "yoloe_zero_embedding_fallback",
@@ -156,6 +162,28 @@ class IncrementalDistillTrainer(DetectionTrainer):
         )
 
     @staticmethod
+    def _parse_class_indices(value: Any) -> list[int]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            text = value.strip()
+            if text.startswith("[") and text.endswith("]"):
+                text = text[1:-1]
+            tokens = [x.strip() for x in text.split(",") if x.strip()]
+            values = tokens
+        elif isinstance(value, (list, tuple)):
+            values = list(value)
+        else:
+            values = [value]
+
+        indices = []
+        for v in values:
+            idx = int(v)
+            if idx not in indices:
+                indices.append(idx)
+        return indices
+
+    @staticmethod
     def _resolve_class_index(
         names: list[str],
         class_name: Any,
@@ -176,6 +204,16 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 "Please fix the class name or use explicit index."
             )
         return int(lookup[class_name])
+
+    @staticmethod
+    def _names_for_indices(names: list[str], indices: list[int]) -> list[str]:
+        resolved = []
+        for idx in indices:
+            if 0 <= idx < len(names):
+                resolved.append(names[idx])
+            else:
+                resolved.append(f"<out_of_range:{idx}>")
+        return resolved
 
     @staticmethod
     def _infer_yoloe_head(weights: Any) -> tuple[str, bool]:
@@ -413,17 +451,23 @@ class IncrementalDistillTrainer(DetectionTrainer):
             )
 
         dataset_names = self._normalize_names(self.data.get("names", {}))
-        class_names = self._parse_class_names(self._get_arg("yoloe_class_names", None)) or dataset_names
-        if not class_names:
+        canonical_names = self._parse_class_names(self._get_arg("yoloe_class_names", None)) or dataset_names
+        if not canonical_names:
             raise ValueError("Unable to determine YOLOE class names. Please provide yoloe_class_names explicitly.")
-        if len(class_names) != int(self.data["nc"]):
+        if len(canonical_names) != int(self.data["nc"]):
             raise ValueError(
-                f"YOLOE class count mismatch: got {len(class_names)} names {class_names}, but data.nc={self.data['nc']}."
+                f"YOLOE class count mismatch: got {len(canonical_names)} names {canonical_names}, but data.nc={self.data['nc']}."
             )
-        if dataset_names and class_names != dataset_names:
+        if dataset_names and canonical_names != dataset_names:
             raise ValueError(
                 "For fixed closed-set incremental experiments, yoloe_class_names must match data names order. "
-                f"Got yoloe_class_names={class_names}, data names={dataset_names}."
+                f"Got yoloe_class_names={canonical_names}, data names={dataset_names}."
+            )
+        prompt_names = self._parse_class_names(self._get_arg("yoloe_prompt_alias_names", None)) or canonical_names
+        if len(prompt_names) != len(canonical_names):
+            raise ValueError(
+                "yoloe_prompt_alias_names must have the same length as canonical class names. "
+                f"Got alias={prompt_names}, canonical={canonical_names}."
             )
 
         allow_zero_fallback = self._get_bool("yoloe_zero_embedding_fallback", default=True)
@@ -432,36 +476,37 @@ class IncrementalDistillTrainer(DetectionTrainer):
             has_clip = importlib.util.find_spec("clip") is not None
             if not has_clip and allow_zero_fallback:
                 raise ModuleNotFoundError("clip")
-            text_embeddings = model.get_text_pe(class_names)
+            text_embeddings = model.get_text_pe(prompt_names)
         except Exception as e:
             if not allow_zero_fallback:
                 raise RuntimeError(
                     "YOLOE fixed-text embedding injection failed while configuring student model. "
                     "Please verify checkpoint compatibility and text model dependencies."
                 ) from e
-            text_embeddings = self._build_zero_text_embeddings(model, class_count=len(class_names))
+            text_embeddings = self._build_zero_text_embeddings(model, class_count=len(canonical_names))
             used_fallback = True
             if RANK in {-1, 0}:
                 LOGGER.warning(
                     "YOLOE fixed-text embedding injection failed; using zero-embedding fallback "
-                    f"(class_count={len(class_names)}, error={type(e).__name__}: {e}). "
+                    f"(class_count={len(canonical_names)}, error={type(e).__name__}: {e}). "
                     "This keeps pipeline runnable but may degrade YOLOE prompt quality."
                 )
 
-        model.set_classes(class_names, text_embeddings)
+        model.set_classes(canonical_names, text_embeddings)
         configured_names = self._normalize_names(getattr(model, "names", None))
-        if configured_names != class_names:
+        if configured_names != canonical_names:
             raise RuntimeError(
                 "YOLOE fixed-text class injection mismatch after set_classes. "
-                f"expected={class_names}, got={configured_names}"
+                f"expected={canonical_names}, got={configured_names}"
             )
         has_pe = hasattr(model, "pe")
         pe_shape = tuple(getattr(model, "pe").shape) if has_pe else None
 
         if RANK in {-1, 0}:
             LOGGER.info(
-                "YOLOE student configured with fixed classes: "
-                f"{class_names} | embedding_mode={'zero_fallback' if used_fallback else 'text'} | "
+                "YOLOE fixed-text class setup: "
+                f"canonical_names={canonical_names} | prompt_names={prompt_names} | "
+                f"embedding_mode={'zero_fallback' if used_fallback else 'text'} | "
                 f"has_pe={has_pe} | pe_shape={pe_shape}"
             )
 
@@ -579,14 +624,47 @@ class IncrementalDistillTrainer(DetectionTrainer):
             fallback_index=int(self._get_arg("distill_teacher_old_class", 0)),
             scope="Teacher old class",
         )
+        student_old_ids = self._parse_class_indices(self._get_arg("distill_old_class_ids", None))
+        teacher_old_ids = self._parse_class_indices(self._get_arg("distill_teacher_old_class_ids", None))
+        if not student_old_ids:
+            student_old_ids = [student_old_idx]
+        if not teacher_old_ids:
+            if len(teacher_names) == 1:
+                teacher_old_ids = [0 for _ in student_old_ids]
+            else:
+                teacher_old_ids = [teacher_old_idx]
+        if len(student_old_ids) > 1 and len(teacher_old_ids) == 1:
+            teacher_old_ids = teacher_old_ids * len(student_old_ids)
+        elif len(teacher_old_ids) > 1 and len(student_old_ids) == 1:
+            student_old_ids = student_old_ids * len(teacher_old_ids)
+        elif len(student_old_ids) != len(teacher_old_ids):
+            n = min(len(student_old_ids), len(teacher_old_ids))
+            if RANK in {-1, 0}:
+                LOGGER.warning(
+                    "distill_old_class_ids and distill_teacher_old_class_ids lengths differ. "
+                    f"Using first {n} pairs: student={student_old_ids}, teacher={teacher_old_ids}."
+                )
+            student_old_ids = student_old_ids[:n]
+            teacher_old_ids = teacher_old_ids[:n]
+
+        feature_mode = str(self._get_arg("distill_feature_mode", "global")).strip().lower()
+        if feature_mode not in {"global", "old_only"}:
+            raise ValueError(
+                f"Unsupported distill_feature_mode='{feature_mode}'. Supported: ['global', 'old_only']."
+            )
 
         distill_cfg = DistillationConfig(
             enabled=self.enable_distillation and self.teacher_model is not None,
-            feature_weight=float(self._get_arg("distill_feature_weight", 1.0)),
-            cls_weight=float(self._get_arg("distill_cls_weight", 1.0)),
-            temperature=float(self._get_arg("distill_temperature", 1.0)),
+            feature_weight=float(self._get_arg("distill_feature_weight", 0.25)),
+            cls_weight=float(self._get_arg("distill_cls_weight", 0.5)),
+            temperature=float(self._get_arg("distill_temperature", 2.0)),
             student_old_class_index=student_old_idx,
             teacher_old_class_index=teacher_old_idx,
+            cls_only_old_classes=self._get_bool("distill_only_old_classes", default=True),
+            student_old_class_indices=tuple(student_old_ids),
+            teacher_old_class_indices=tuple(teacher_old_ids),
+            feature_mode=feature_mode,
+            feature_old_score_thresh=float(self._get_arg("distill_feature_old_score_thr", 0.3)),
         )
         student.criterion = DistillationLossWrapper(
             base_criterion=student.criterion,
@@ -606,14 +684,27 @@ class IncrementalDistillTrainer(DetectionTrainer):
 
         if RANK in {-1, 0}:
             student_head = getattr(getattr(student, "model", None), "__getitem__", lambda x: None)(-1)
+            student_old_names = self._names_for_indices(student_names, list(distill_cfg.student_old_class_indices))
+            teacher_old_names = self._names_for_indices(teacher_names, list(distill_cfg.teacher_old_class_indices))
             LOGGER.info(
                 "Distillation setup complete: "
                 f"enabled={distill_cfg.enabled}, "
                 f"feature_w={distill_cfg.feature_weight}, "
                 f"cls_w={distill_cfg.cls_weight}, "
+                f"temperature={distill_cfg.temperature}, "
+                f"cls_scope={'old_only' if distill_cfg.cls_only_old_classes else 'all_overlap'}, "
+                f"feature_mode={distill_cfg.feature_mode}, "
+                f"feature_old_thr={distill_cfg.feature_old_score_thresh}, "
                 f"student_old_idx={distill_cfg.student_old_class_index}, "
                 f"teacher_old_idx={distill_cfg.teacher_old_class_index}, "
                 f"student_head={student_head.__class__.__name__.lower() if student_head is not None else 'unknown'}"
+            )
+            LOGGER.info(
+                "Distillation class mapping: "
+                f"student_names={student_names}, "
+                f"teacher_names={teacher_names}, "
+                f"student_old_ids={list(distill_cfg.student_old_class_indices)} ({student_old_names}), "
+                f"teacher_old_ids={list(distill_cfg.teacher_old_class_indices)} ({teacher_old_names})"
             )
 
     def validate(self):

@@ -3,4 +3,4 @@ train: SSDD/images/train
 val: SSDD/images/val
 names:
   0: ship
-  1: oiltank
+  1: tank
