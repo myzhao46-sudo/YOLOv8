@@ -244,11 +244,23 @@ class DistillationLossWrapper:
             s_logit = torch.cat(s_logits, dim=0)
             t_logit = torch.cat(t_logits, dim=0)
         else:
-            n_cls = min(s_scores.shape[1], t_scores.shape[1])
-            if n_cls <= 0:
-                return torch.zeros((), device=self._infer_device(student_preds, fallback=device))
-            s_logit = s_scores[:, :n_cls, :]
-            t_logit = t_scores[:, :n_cls, :]
+            if self.cfg.student_old_class_indices and self.cfg.teacher_old_class_indices:
+                s_ids = [min(max(int(i), 0), s_scores.shape[1] - 1) for i in self.cfg.student_old_class_indices]
+                t_ids = [min(max(int(i), 0), t_scores.shape[1] - 1) for i in self.cfg.teacher_old_class_indices]
+                pair_count = min(len(s_ids), len(t_ids))
+                if pair_count > 0:
+                    s_logits = [s_scores[:, s_ids[i], :] for i in range(pair_count)]
+                    t_logits = [t_scores[:, t_ids[i], :] for i in range(pair_count)]
+                    s_logit = torch.cat(s_logits, dim=0)
+                    t_logit = torch.cat(t_logits, dim=0)
+                else:
+                    return torch.zeros((), device=self._infer_device(student_preds, fallback=device))
+            else:
+                n_cls = min(s_scores.shape[1], t_scores.shape[1])
+                if n_cls <= 0:
+                    return torch.zeros((), device=self._infer_device(student_preds, fallback=device))
+                s_logit = s_scores[:, :n_cls, :]
+                t_logit = t_scores[:, :n_cls, :]
         if s_logit.shape[-1] != t_logit.shape[-1]:
             n = min(s_logit.shape[-1], t_logit.shape[-1])
             s_logit = s_logit[..., :n]
