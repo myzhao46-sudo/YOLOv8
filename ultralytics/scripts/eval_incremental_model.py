@@ -17,7 +17,7 @@ if str(LOCAL_ULTRALYTICS_ROOT) not in sys.path:
 from ultralytics import YOLO, YOLOE
 from ultralytics.data.sliding_window import SliceConfig, prepare_sliced_image_paths
 from ultralytics.data.utils import check_det_dataset
-from ultralytics.nn.tasks import YOLOEModel, load_checkpoint, yaml_model_load
+from ultralytics.nn.tasks import YOLOEModel, YOLOESegModel, load_checkpoint, yaml_model_load
 from ultralytics.utils import LOGGER, YAML
 from ultralytics.utils.checks import check_yaml
 
@@ -177,6 +177,38 @@ def _infer_detect_yaml_for_yoloe_seg(model_ref: str, loaded: YOLO) -> str:
     )
 
 
+def _infer_seg_yaml_for_yoloe_seg(model_ref: str, loaded: YOLO) -> str:
+    candidates: list[str] = []
+    inner = getattr(loaded, "model", None)
+    yaml_file = getattr(inner, "yaml_file", None)
+    if yaml_file:
+        candidates.append(str(yaml_file))
+
+    stem = Path(str(model_ref)).stem.lower()
+    if "yoloe-v8" in stem:
+        candidates.append("yoloe-v8-seg.yaml")
+    if "yoloe-11" in stem:
+        candidates.append("yoloe-11-seg.yaml")
+    if "yoloe-26" in stem:
+        candidates.append("yoloe-26-seg.yaml")
+
+    # Fallback for generic checkpoint names (best.pt/last.pt)
+    candidates.extend(["yoloe-v8-seg.yaml", "yoloe-11-seg.yaml", "yoloe-26-seg.yaml"])
+
+    seen = set()
+    for cand in candidates:
+        if not cand or cand in seen:
+            continue
+        seen.add(cand)
+        resolved = check_yaml(cand, hard=False)
+        if resolved:
+            return str(resolved)
+    raise FileNotFoundError(
+        "Failed to resolve seg YAML for YOLOE seg checkpoint. "
+        f"Candidates tried: {candidates}. Please ensure yoloe-v8/11/26 seg YAML exists in this repo."
+    )
+
+
 def _build_zero_text_embeddings(model: YOLOEModel, class_count: int) -> torch.Tensor:
     head = model.model[-1] if hasattr(model, "model") and len(model.model) else None
     embed_dim = int(getattr(head, "embed", 512))
@@ -233,6 +265,44 @@ def _adapt_yoloe_seg_checkpoint_for_detect_eval(
     LOGGER.warning(
         "Adapted YOLOE seg checkpoint to detect model for evaluation: "
         f"detect_yaml={detect_yaml}, build_nc={build_nc}, classes={class_names}, embedding_mode={emb_mode}"
+    )
+    return loaded
+
+
+def _rebuild_yoloe_seg_checkpoint_for_native_eval(
+    loaded: YOLOE,
+    model_ref: str,
+    class_names: list[str],
+    *,
+    seg_yaml_override: str | None = None,
+    scale_override: str | None = None,
+) -> YOLOE:
+    probe = YOLO(model_ref)
+    if seg_yaml_override:
+        seg_yaml = str(check_yaml(seg_yaml_override, hard=True))
+    else:
+        seg_yaml = _infer_seg_yaml_for_yoloe_seg(model_ref, probe)
+
+    seg_cfg = yaml_model_load(seg_yaml)
+    if scale_override:
+        seg_cfg["scale"] = str(scale_override)
+
+    ckpt_names = _normalize_names(getattr(probe, "names", None))
+    build_nc = max(len(ckpt_names), len(class_names), 1)
+    model = YOLOESegModel(seg_cfg, ch=3, nc=build_nc, verbose=False)
+    pretrained_model, _ = load_checkpoint(model_ref, device=next(model.parameters()).device, inplace=True, fuse=False)
+    model.load(pretrained_model, verbose=True)  # intersect load
+
+    loaded.model = model
+    loaded.task = "segment"
+    if getattr(loaded, "overrides", None) is None:
+        loaded.overrides = {}
+    loaded.overrides["task"] = "segment"
+    loaded.overrides.pop("nc", None)
+    loaded.overrides.pop("names", None)
+    LOGGER.warning(
+        "Rebuilt YOLOE seg model for native eval: "
+        f"seg_yaml={seg_yaml}, build_nc={build_nc}, eval_names={class_names}"
     )
     return loaded
 
@@ -348,6 +418,12 @@ def _parse_args() -> argparse.Namespace:
             "'native' uses YOLOE(...).val() flow; 'adapt_detect' forces seg->detect adaptation."
         ),
     )
+    parser.add_argument(
+        "--yoloe-seg-yaml",
+        type=str,
+        default=None,
+        help="Optional explicit YOLOE seg YAML for native seg eval rebuild (e.g. yoloe-v8-seg.yaml).",
+    )
     return parser.parse_args()
 
 
@@ -380,10 +456,17 @@ def main() -> None:
 
     model = YOLO(args.model)
     if _is_yoloe_seg_model(model) and args.yoloe_seg_eval_mode == "native":
-        # Keep native YOLOE validation behavior for seg checkpoints.
-        # This matches common usage: YOLOE("...best.pt").val(...)
-        model = YOLOE(args.model)
-        LOGGER.warning("YOLOE seg checkpoint detected; using native YOLOE validation flow (no detect adaptation).")
+        # Native official flow with text-prompt validator, but rebuild seg architecture from YAML first.
+        # This avoids class-channel mismatch for some fused/multi-class checkpoints when evaluating subset class names.
+        model = YOLOE(args.model, task="segment")
+        model = _rebuild_yoloe_seg_checkpoint_for_native_eval(
+            model,
+            args.model,
+            primary_names,
+            seg_yaml_override=args.yoloe_seg_yaml,
+            scale_override=args.yoloe_scale,
+        )
+        LOGGER.warning("YOLOE seg checkpoint detected; using native YOLOE validation flow after seg rebuild.")
     else:
         model = _maybe_adapt_model_for_eval(
             model,
