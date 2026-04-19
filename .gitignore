@@ -9,3 +9,4 @@ ultralytics/**/sliced_eval_data/
 ultralytics/**/.slice_cache/
 ultralytics/datasets/
 ultralytics/tmp_data/cache/
+mobileclip_blt.ts
