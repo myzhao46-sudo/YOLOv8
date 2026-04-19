@@ -14,7 +14,7 @@ LOCAL_ULTRALYTICS_ROOT = THIS_FILE.parents[1]  # .../ultralytics
 if str(LOCAL_ULTRALYTICS_ROOT) not in sys.path:
     sys.path.insert(0, str(LOCAL_ULTRALYTICS_ROOT))
 
-from ultralytics import YOLO
+from ultralytics import YOLO, YOLOE
 from ultralytics.data.sliding_window import SliceConfig, prepare_sliced_image_paths
 from ultralytics.data.utils import check_det_dataset
 from ultralytics.nn.tasks import YOLOEModel, load_checkpoint, yaml_model_load
@@ -276,6 +276,25 @@ def _sanitize_model_overrides_for_val(loaded: YOLO) -> None:
         overrides.pop(k, None)
 
 
+def _is_yoloe_family_model(loaded: YOLO) -> bool:
+    inner = getattr(loaded, "model", None)
+    if inner is None:
+        return False
+    cls_name = inner.__class__.__name__.lower()
+    head_name = ""
+    try:
+        head_name = inner.model[-1].__class__.__name__.lower()
+    except Exception:
+        pass
+    return "yoloe" in cls_name or "yoloe" in head_name
+
+
+def _is_yoloe_seg_model(loaded: YOLO) -> bool:
+    inner = getattr(loaded, "model", None)
+    task = str(getattr(inner, "task", getattr(loaded, "task", "")) or "").lower()
+    return task == "segment" and _is_yoloe_family_model(loaded)
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Standalone evaluation for trained incremental detect models.")
     parser.add_argument("--model", type=str, required=True, help="Path to trained model checkpoint (best.pt/last.pt).")
@@ -319,6 +338,16 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Optional YOLOE scale override when using family detect YAML (n/s/m/l/x).",
     )
+    parser.add_argument(
+        "--yoloe-seg-eval-mode",
+        type=str,
+        default="native",
+        choices=("native", "adapt_detect"),
+        help=(
+            "How to evaluate YOLOE segment checkpoints: "
+            "'native' uses YOLOE(...).val() flow; 'adapt_detect' forces seg->detect adaptation."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -350,14 +379,20 @@ def main() -> None:
         raise ValueError(f"Unable to read class names from primary data yaml: {args.data[0]}")
 
     model = YOLO(args.model)
-    model = _maybe_adapt_model_for_eval(
-        model,
-        args.model,
-        primary_names,
-        detect_yaml_override=args.yoloe_detect_yaml,
-        scale_override=args.yoloe_scale,
-        zero_embedding_fallback=not args.disable_yoloe_zero_embedding_fallback,
-    )
+    if _is_yoloe_seg_model(model) and args.yoloe_seg_eval_mode == "native":
+        # Keep native YOLOE validation behavior for seg checkpoints.
+        # This matches common usage: YOLOE("...best.pt").val(...)
+        model = YOLOE(args.model)
+        LOGGER.warning("YOLOE seg checkpoint detected; using native YOLOE validation flow (no detect adaptation).")
+    else:
+        model = _maybe_adapt_model_for_eval(
+            model,
+            args.model,
+            primary_names,
+            detect_yaml_override=args.yoloe_detect_yaml,
+            scale_override=args.yoloe_scale,
+            zero_embedding_fallback=not args.disable_yoloe_zero_embedding_fallback,
+        )
     _sanitize_model_overrides_for_val(model)
     LOGGER.info(f"Loaded model for evaluation: {args.model}")
     LOGGER.info(f"Model names: {getattr(model, 'names', None)}")
@@ -390,7 +425,6 @@ def main() -> None:
         metrics = model.val(
             data=eval_yaml,
             split=args.split,
-            task="detect",
             imgsz=args.imgsz,
             batch=args.batch,
             device=args.device,
