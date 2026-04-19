@@ -442,6 +442,38 @@ def _results_summary(results_dict: dict[str, Any]) -> dict[str, float]:
     return out
 
 
+def _dataset_names_from_yaml(data_yaml: str) -> list[str]:
+    data = check_det_dataset(data_yaml, autodownload=False)
+    return _normalize_names(data.get("names", {}))
+
+
+def _try_set_yoloe_eval_classes(loaded: YOLO, class_names: list[str]) -> None:
+    """Best-effort class prompt setup for YOLOE models."""
+    if not class_names:
+        return
+    if hasattr(loaded, "set_classes"):
+        try:
+            loaded.set_classes(class_names)
+            return
+        except Exception:
+            pass
+    inner = getattr(loaded, "model", None)
+    if isinstance(inner, (YOLOEModel, YOLOESegModel)):
+        try:
+            tpe = inner.get_text_pe(class_names)
+            inner.set_classes(class_names, tpe)
+        except Exception as e:
+            LOGGER.warning(
+                "YOLOE eval class setup failed, continue with model defaults. "
+                f"names={class_names}, error={type(e).__name__}: {e}"
+            )
+
+
+def _is_seg_detect_label_mismatch_error(exc: Exception) -> bool:
+    text = f"{type(exc).__name__}: {exc}"
+    return ("sem_masks" in text) or ("index is out of bounds for dimension with size 0" in text)
+
+
 def main() -> None:
     args = _parse_args()
 
@@ -455,7 +487,8 @@ def main() -> None:
         raise ValueError(f"Unable to read class names from primary data yaml: {args.data[0]}")
 
     model = YOLO(args.model)
-    if _is_yoloe_seg_model(model) and args.yoloe_seg_eval_mode == "native":
+    native_yoloe_seg = _is_yoloe_seg_model(model) and args.yoloe_seg_eval_mode == "native"
+    if native_yoloe_seg:
         # Native official flow with text-prompt validator, but rebuild seg architecture from YAML first.
         # This avoids class-channel mismatch for some fused/multi-class checkpoints when evaluating subset class names.
         model = YOLOE(args.model, task="segment")
@@ -505,26 +538,68 @@ def main() -> None:
         )
 
         LOGGER.info(f"[{tag}] evaluating data={eval_yaml} split={args.split}")
-        metrics = model.val(
-            data=eval_yaml,
-            split=args.split,
-            imgsz=args.imgsz,
-            batch=args.batch,
-            device=args.device,
-            workers=args.workers,
-            conf=args.conf,
-            iou=args.iou,
-            max_det=args.max_det,
-            plots=args.plots,
-            save_json=args.save_json,
-            save_txt=False,
-            save_conf=False,
-            project=args.project,
-            name=f"{args.name}_{tag}",
-            exist_ok=args.exist_ok,
-            verbose=True,
-            compile=False,
-        )
+        eval_names = _dataset_names_from_yaml(eval_yaml)
+        _try_set_yoloe_eval_classes(model, eval_names)
+
+        try:
+            metrics = model.val(
+                data=eval_yaml,
+                split=args.split,
+                imgsz=args.imgsz,
+                batch=args.batch,
+                device=args.device,
+                workers=args.workers,
+                conf=args.conf,
+                iou=args.iou,
+                max_det=args.max_det,
+                plots=args.plots,
+                save_json=args.save_json,
+                save_txt=False,
+                save_conf=False,
+                project=args.project,
+                name=f"{args.name}_{tag}",
+                exist_ok=args.exist_ok,
+                verbose=True,
+                compile=False,
+            )
+        except Exception as e:
+            if native_yoloe_seg and _is_seg_detect_label_mismatch_error(e):
+                LOGGER.warning(
+                    "Native YOLOE-seg validation failed on detection-style labels. "
+                    "Falling back to seg->detect adaptation for this run."
+                )
+                model = _maybe_adapt_model_for_eval(
+                    YOLO(args.model),
+                    args.model,
+                    eval_names or primary_names,
+                    detect_yaml_override=args.yoloe_detect_yaml,
+                    scale_override=args.yoloe_scale,
+                    zero_embedding_fallback=not args.disable_yoloe_zero_embedding_fallback,
+                )
+                _sanitize_model_overrides_for_val(model)
+                native_yoloe_seg = False
+                metrics = model.val(
+                    data=eval_yaml,
+                    split=args.split,
+                    imgsz=args.imgsz,
+                    batch=args.batch,
+                    device=args.device,
+                    workers=args.workers,
+                    conf=args.conf,
+                    iou=args.iou,
+                    max_det=args.max_det,
+                    plots=args.plots,
+                    save_json=args.save_json,
+                    save_txt=False,
+                    save_conf=False,
+                    project=args.project,
+                    name=f"{args.name}_{tag}",
+                    exist_ok=args.exist_ok,
+                    verbose=True,
+                    compile=False,
+                )
+            else:
+                raise
         results_dict = getattr(metrics, "results_dict", {}) or {}
         all_summaries[tag] = _results_summary(results_dict)
         LOGGER.info(f"[{tag}] summary: {all_summaries[tag]}")
