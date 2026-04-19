@@ -46,6 +46,7 @@ class DistillationLossWrapper:
         self.base_criterion = base_criterion
         self.teacher_model = teacher_model
         self.cfg = cfg
+        self._teacher_head_train_hint_logged = False
 
     def __getattr__(self, name: str):
         # Delegate unknown attributes to wrapped criterion (e.g., parse_output, assigner, update).
@@ -92,6 +93,36 @@ class DistillationLossWrapper:
         for b in model.buffers():
             return b.device, b.dtype
         return fallback_device, fallback_dtype
+
+    def _forward_teacher_raw(self, teacher_img: torch.Tensor) -> Any:
+        """Run teacher forward while forcing detection/seg head to return raw train-style preds dict."""
+        if self.teacher_model is None:
+            return None
+
+        head = None
+        model_list = getattr(self.teacher_model, "model", None)
+        if model_list is not None:
+            try:
+                if len(model_list):
+                    head = model_list[-1]
+            except Exception:
+                head = None
+
+        head_training = None
+        if isinstance(head, torch.nn.Module):
+            head_training = bool(getattr(head, "training", False))
+            # Only flip top-level head.training flag to bypass inference concat/postprocess path.
+            # Do not call head.train() to avoid recursively changing BN/dropout submodules.
+            head.training = True
+            if not self._teacher_head_train_hint_logged:
+                LOGGER.info("Teacher forward uses head.training=True path to return raw distill predictions.")
+                self._teacher_head_train_hint_logged = True
+
+        try:
+            return self.teacher_model(teacher_img)
+        finally:
+            if isinstance(head, torch.nn.Module) and head_training is not None:
+                head.training = head_training
 
     @staticmethod
     def _resolve_class_indices(
@@ -309,7 +340,7 @@ class DistillationLossWrapper:
             teacher_img = teacher_img.to(device=teacher_device, dtype=teacher_dtype, non_blocking=True)
 
         with torch.no_grad():
-            teacher_out = self.teacher_model(teacher_img)
+            teacher_out = self._forward_teacher_raw(teacher_img)
             teacher_preds = self._parse_preds(teacher_out)
         if not teacher_preds:
             raise RuntimeError(

@@ -36,6 +36,7 @@ class IncrementalDistillTrainer(DetectionTrainer):
         "distill_cls_weight",
         "distill_temperature",
         "distill_only_old_classes",
+        "distill_auto_class_align",
         "distill_old_class_ids",
         "distill_teacher_old_class_ids",
         "distill_feature_mode",
@@ -625,20 +626,32 @@ class IncrementalDistillTrainer(DetectionTrainer):
             scope="Teacher old class",
         )
         cls_only_old = self._get_bool("distill_only_old_classes", default=True)
+        auto_class_align = self._get_bool("distill_auto_class_align", default=not cls_only_old)
         raw_student_ids = self._parse_class_indices(self._get_arg("distill_old_class_ids", None))
         raw_teacher_ids = self._parse_class_indices(self._get_arg("distill_teacher_old_class_ids", None))
         student_old_ids = raw_student_ids.copy()
         teacher_old_ids = raw_teacher_ids.copy()
-        if not cls_only_old and not raw_student_ids and not raw_teacher_ids and student_names and teacher_names:
+        if not cls_only_old and auto_class_align and student_names and teacher_names:
             student_lookup = {str(n): i for i, n in enumerate(student_names)}
             teacher_lookup = {str(n): i for i, n in enumerate(teacher_names)}
             shared_names = [n for n in student_names if n in teacher_lookup]
-            student_old_ids = [student_lookup[n] for n in shared_names]
-            teacher_old_ids = [teacher_lookup[n] for n in shared_names]
-            if RANK in {-1, 0}:
-                LOGGER.info(
-                    "Distill cls all-overlap class-name alignment enabled: "
-                    f"shared_names={shared_names}, student_ids={student_old_ids}, teacher_ids={teacher_old_ids}"
+            if shared_names:
+                student_old_ids = [student_lookup[n] for n in shared_names]
+                teacher_old_ids = [teacher_lookup[n] for n in shared_names]
+                if RANK in {-1, 0}:
+                    if raw_student_ids or raw_teacher_ids:
+                        LOGGER.warning(
+                            "distill_auto_class_align=True: ignoring distill_old_class_ids / "
+                            "distill_teacher_old_class_ids and using class-name alignment."
+                        )
+                    LOGGER.info(
+                        "Distill cls all-overlap class-name alignment enabled: "
+                        f"shared_names={shared_names}, student_ids={student_old_ids}, teacher_ids={teacher_old_ids}"
+                    )
+            elif RANK in {-1, 0}:
+                LOGGER.warning(
+                    "distill_auto_class_align=True but no shared class names found between student and teacher; "
+                    "falling back to explicit/default class indices."
                 )
         if not student_old_ids:
             student_old_ids = [student_old_idx]
@@ -707,6 +720,7 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 f"cls_w={distill_cfg.cls_weight}, "
                 f"temperature={distill_cfg.temperature}, "
                 f"cls_scope={'old_only' if distill_cfg.cls_only_old_classes else 'all_overlap'}, "
+                f"auto_class_align={auto_class_align}, "
                 f"feature_mode={distill_cfg.feature_mode}, "
                 f"feature_old_thr={distill_cfg.feature_old_score_thresh}, "
                 f"student_old_idx={distill_cfg.student_old_class_index}, "

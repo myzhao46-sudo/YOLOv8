@@ -29,6 +29,7 @@ distill_feature_weight: 0.25
 distill_cls_weight: 0.5
 distill_temperature: 2.0
 distill_only_old_classes: True
+distill_auto_class_align: True # when distill_only_old_classes=False, align by shared class names
 distill_old_class_ids: [0]
 distill_teacher_old_class_ids: [0]
 distill_feature_mode: old_only # global | old_only
