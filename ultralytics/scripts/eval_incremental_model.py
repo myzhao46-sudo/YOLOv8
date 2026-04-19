@@ -17,7 +17,7 @@ if str(LOCAL_ULTRALYTICS_ROOT) not in sys.path:
 from ultralytics import YOLO
 from ultralytics.data.sliding_window import SliceConfig, prepare_sliced_image_paths
 from ultralytics.data.utils import check_det_dataset
-from ultralytics.nn.tasks import YOLOEModel, yaml_model_load
+from ultralytics.nn.tasks import YOLOEModel, load_checkpoint, yaml_model_load
 from ultralytics.utils import LOGGER, YAML
 from ultralytics.utils.checks import check_yaml
 
@@ -201,7 +201,8 @@ def _adapt_yoloe_seg_checkpoint_for_detect_eval(
     if scale_override:
         detect_cfg["scale"] = str(scale_override)
     model = YOLOEModel(detect_cfg, ch=3, nc=len(class_names), verbose=False)
-    model.load(model_ref)  # intersect load
+    pretrained_model, _ = load_checkpoint(model_ref, device=next(model.parameters()).device, inplace=True, fuse=False)
+    model.load(pretrained_model, verbose=True)  # intersect load
 
     try:
         text_embeddings = model.get_text_pe(class_names)
