@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import sys
+import torch
 
 # Prefer local repo package over site-packages when running as:
 #   python ultralytics/scripts/eval_incremental_model.py ...
@@ -16,7 +17,9 @@ if str(LOCAL_ULTRALYTICS_ROOT) not in sys.path:
 from ultralytics import YOLO
 from ultralytics.data.sliding_window import SliceConfig, prepare_sliced_image_paths
 from ultralytics.data.utils import check_det_dataset
+from ultralytics.nn.tasks import YOLOEModel, yaml_model_load
 from ultralytics.utils import LOGGER, YAML
+from ultralytics.utils.checks import check_yaml
 
 
 def _restore_path_type(original: str | list[str], paths: list[str]) -> str | list[str]:
@@ -88,6 +91,126 @@ def _default_tags(data_list: list[str]) -> list[str]:
     return tags
 
 
+def _normalize_names(names: Any) -> list[str]:
+    if isinstance(names, dict):
+        return [str(v) for _, v in sorted(names.items(), key=lambda x: int(x[0]))]
+    if isinstance(names, (list, tuple)):
+        return [str(v) for v in names]
+    return []
+
+
+def _family_yoloe_yaml_from_stem(stem: str) -> str:
+    stem = stem.lower()
+    if "yoloe-v8" in stem:
+        return "yoloe-v8.yaml"
+    if "yoloe-11" in stem:
+        return "yoloe-11.yaml"
+    if "yoloe-26" in stem:
+        return "yoloe-26.yaml"
+    return ""
+
+
+def _infer_detect_yaml_for_yoloe_seg(model_ref: str, loaded: YOLO) -> str:
+    candidates: list[str] = []
+    sources = [model_ref]
+    inner = getattr(loaded, "model", None)
+    yaml_file = getattr(inner, "yaml_file", None)
+    if yaml_file:
+        sources.append(str(yaml_file))
+
+    for src in sources:
+        stem = Path(str(src)).stem.lower()
+        detect_stem = stem.replace("-seg-pf", "").replace("-seg", "")
+        if detect_stem:
+            candidates.append(f"{detect_stem}.yaml")
+            candidates.append(str(Path(str(src)).with_name(f"{detect_stem}.yaml")))
+        fam = _family_yoloe_yaml_from_stem(stem)
+        if fam:
+            candidates.append(fam)
+
+    seen = set()
+    for cand in candidates:
+        if not cand or cand in seen:
+            continue
+        seen.add(cand)
+        resolved = check_yaml(cand, hard=False)
+        if resolved:
+            return str(resolved)
+    raise FileNotFoundError(
+        "Failed to resolve detect YAML for YOLOE seg checkpoint. "
+        f"Candidates tried: {candidates}. Please ensure yoloe-v8/11/26 detect YAML exists in this repo."
+    )
+
+
+def _build_zero_text_embeddings(model: YOLOEModel, class_count: int) -> torch.Tensor:
+    head = model.model[-1] if hasattr(model, "model") and len(model.model) else None
+    embed_dim = int(getattr(head, "embed", 512))
+    device = next(model.parameters()).device
+    return torch.zeros((1, class_count, embed_dim), device=device, dtype=torch.float32)
+
+
+def _adapt_yoloe_seg_checkpoint_for_detect_eval(
+    loaded: YOLO,
+    model_ref: str,
+    class_names: list[str],
+    *,
+    zero_embedding_fallback: bool = True,
+) -> YOLO:
+    detect_yaml = _infer_detect_yaml_for_yoloe_seg(model_ref, loaded)
+    detect_cfg = yaml_model_load(detect_yaml)
+    model = YOLOEModel(detect_cfg, ch=3, nc=len(class_names), verbose=False)
+    model.load(model_ref)  # intersect load
+
+    try:
+        text_embeddings = model.get_text_pe(class_names)
+        emb_mode = "text"
+    except Exception as e:
+        if not zero_embedding_fallback:
+            raise RuntimeError("Failed to build YOLOE text embeddings for eval adaptation.") from e
+        text_embeddings = _build_zero_text_embeddings(model, class_count=len(class_names))
+        emb_mode = "zero_fallback"
+        LOGGER.warning(
+            "YOLOE detect-eval adaptation text embedding failed; using zero fallback. "
+            f"error={type(e).__name__}: {e}"
+        )
+
+    model.set_classes(class_names, text_embeddings)
+    loaded.model = model
+    loaded.task = "detect"
+    if getattr(loaded, "overrides", None) is None:
+        loaded.overrides = {}
+    loaded.overrides["task"] = "detect"
+    loaded.overrides["nc"] = len(class_names)
+    loaded.overrides["names"] = class_names
+    LOGGER.warning(
+        "Adapted YOLOE seg checkpoint to detect model for evaluation: "
+        f"detect_yaml={detect_yaml}, classes={class_names}, embedding_mode={emb_mode}"
+    )
+    return loaded
+
+
+def _maybe_adapt_model_for_eval(
+    loaded: YOLO, model_ref: str, class_names: list[str], *, zero_embedding_fallback: bool
+) -> YOLO:
+    inner = getattr(loaded, "model", None)
+    task = str(getattr(inner, "task", getattr(loaded, "task", "")) or "").lower()
+    head_name = ""
+    try:
+        head_name = inner.model[-1].__class__.__name__.lower()
+    except Exception:
+        pass
+    cls_name = inner.__class__.__name__.lower() if inner is not None else ""
+    is_yoloe = "yoloe" in cls_name or "yoloe" in head_name
+    if task == "segment" and is_yoloe:
+        return _adapt_yoloe_seg_checkpoint_for_detect_eval(
+            loaded,
+            model_ref,
+            class_names,
+            zero_embedding_fallback=zero_embedding_fallback,
+        )
+    return loaded
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Standalone evaluation for trained incremental detect models.")
     parser.add_argument("--model", type=str, required=True, help="Path to trained model checkpoint (best.pt/last.pt).")
@@ -114,6 +237,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--cache-slices", action="store_true", help="Cache sliced tiles.")
     parser.add_argument("--slice-cache-dir", type=str, default=None, help="Optional custom slicing cache directory.")
     parser.add_argument("--seed", type=int, default=0, help="Seed for deterministic slicing decisions.")
+    parser.add_argument(
+        "--disable-yoloe-zero-embedding-fallback",
+        action="store_true",
+        help="Disable zero-text-embedding fallback when adapting YOLOE seg checkpoint to detect eval.",
+    )
     return parser.parse_args()
 
 
@@ -139,7 +267,18 @@ def main() -> None:
     if len(tags) != len(args.data):
         raise ValueError(f"--tags length ({len(tags)}) must match --data length ({len(args.data)}).")
 
+    primary_data = check_det_dataset(args.data[0], autodownload=False)
+    primary_names = _normalize_names(primary_data.get("names", {}))
+    if not primary_names:
+        raise ValueError(f"Unable to read class names from primary data yaml: {args.data[0]}")
+
     model = YOLO(args.model)
+    model = _maybe_adapt_model_for_eval(
+        model,
+        args.model,
+        primary_names,
+        zero_embedding_fallback=not args.disable_yoloe_zero_embedding_fallback,
+    )
     LOGGER.info(f"Loaded model for evaluation: {args.model}")
     LOGGER.info(f"Model names: {getattr(model, 'names', None)}")
 
