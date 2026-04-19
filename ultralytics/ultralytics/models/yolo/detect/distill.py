@@ -321,7 +321,9 @@ class DistillationLossWrapper:
             base_items = base_items.unsqueeze(0)
 
         distill_items = torch.zeros(2, device=base_total_loss.device, dtype=base_total_loss.dtype)
-        if not self.cfg.enabled or self.teacher_model is None:
+        # Validation runs under torch.no_grad(); skip teacher distillation there to avoid unstable
+        # teacher inference-side paths and keep val loss consistent with base detector loss.
+        if not torch.is_grad_enabled() or not self.cfg.enabled or self.teacher_model is None:
             return base_total_loss, torch.cat((base_items, distill_items))
 
         student_preds = self._parse_preds(preds)
