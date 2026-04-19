@@ -200,7 +200,10 @@ def _adapt_yoloe_seg_checkpoint_for_detect_eval(
     detect_cfg = yaml_model_load(detect_yaml)
     if scale_override:
         detect_cfg["scale"] = str(scale_override)
-    model = YOLOEModel(detect_cfg, ch=3, nc=len(class_names), verbose=False)
+    # Build with checkpoint-native class count first to preserve maximum transferable weights.
+    ckpt_names = _normalize_names(getattr(loaded, "names", None))
+    build_nc = max(len(ckpt_names), len(class_names), 1)
+    model = YOLOEModel(detect_cfg, ch=3, nc=build_nc, verbose=False)
     pretrained_model, _ = load_checkpoint(model_ref, device=next(model.parameters()).device, inplace=True, fuse=False)
     model.load(pretrained_model, verbose=True)  # intersect load
 
@@ -229,7 +232,7 @@ def _adapt_yoloe_seg_checkpoint_for_detect_eval(
     loaded.overrides.pop("names", None)
     LOGGER.warning(
         "Adapted YOLOE seg checkpoint to detect model for evaluation: "
-        f"detect_yaml={detect_yaml}, classes={class_names}, embedding_mode={emb_mode}"
+        f"detect_yaml={detect_yaml}, build_nc={build_nc}, classes={class_names}, embedding_mode={emb_mode}"
     )
     return loaded
 
