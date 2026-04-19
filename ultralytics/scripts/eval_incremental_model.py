@@ -223,8 +223,10 @@ def _adapt_yoloe_seg_checkpoint_for_detect_eval(
     if getattr(loaded, "overrides", None) is None:
         loaded.overrides = {}
     loaded.overrides["task"] = "detect"
-    loaded.overrides["nc"] = len(class_names)
-    loaded.overrides["names"] = class_names
+    # Do not put 'nc'/'names' into overrides:
+    # model.val() passes overrides through global cfg validator and those keys are not valid CLI args.
+    loaded.overrides.pop("nc", None)
+    loaded.overrides.pop("names", None)
     LOGGER.warning(
         "Adapted YOLOE seg checkpoint to detect model for evaluation: "
         f"detect_yaml={detect_yaml}, classes={class_names}, embedding_mode={emb_mode}"
@@ -260,6 +262,15 @@ def _maybe_adapt_model_for_eval(
             zero_embedding_fallback=zero_embedding_fallback,
         )
     return loaded
+
+
+def _sanitize_model_overrides_for_val(loaded: YOLO) -> None:
+    """Remove internal-only keys that break cfg arg validation in model.val()."""
+    overrides = getattr(loaded, "overrides", None)
+    if not isinstance(overrides, dict):
+        return
+    for k in ("nc", "names"):
+        overrides.pop(k, None)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -344,6 +355,7 @@ def main() -> None:
         scale_override=args.yoloe_scale,
         zero_embedding_fallback=not args.disable_yoloe_zero_embedding_fallback,
     )
+    _sanitize_model_overrides_for_val(model)
     LOGGER.info(f"Loaded model for evaluation: {args.model}")
     LOGGER.info(f"Model names: {getattr(model, 'names', None)}")
 
