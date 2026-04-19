@@ -110,6 +110,35 @@ def _family_yoloe_yaml_from_stem(stem: str) -> str:
     return ""
 
 
+def _yaml_module_name(entry: Any) -> str:
+    if isinstance(entry, (list, tuple)) and len(entry) >= 3:
+        return str(entry[2]).lower()
+    return ""
+
+
+def _family_yoloe_yaml_from_cfg_dict(cfg_dict: dict[str, Any] | None) -> str:
+    if not isinstance(cfg_dict, dict):
+        return ""
+    head = cfg_dict.get("head", []) or []
+    backbone = cfg_dict.get("backbone", []) or []
+    head_mods = [_yaml_module_name(x) for x in head]
+    backbone_mods = [_yaml_module_name(x) for x in backbone]
+
+    if any("yoloesegment26" in m for m in head_mods):
+        return "yoloe-26.yaml"
+    if any("c2f" in m for m in backbone_mods + head_mods):
+        return "yoloe-v8.yaml"
+    if any("c3k2" in m for m in backbone_mods + head_mods):
+        if (
+            bool(cfg_dict.get("end2end", False))
+            or str(cfg_dict.get("text_model", "")).startswith("mobileclip2")
+            or int(cfg_dict.get("reg_max", 16)) == 1
+        ):
+            return "yoloe-26.yaml"
+        return "yoloe-11.yaml"
+    return ""
+
+
 def _infer_detect_yaml_for_yoloe_seg(model_ref: str, loaded: YOLO) -> str:
     candidates: list[str] = []
     sources = [model_ref]
@@ -117,16 +146,22 @@ def _infer_detect_yaml_for_yoloe_seg(model_ref: str, loaded: YOLO) -> str:
     yaml_file = getattr(inner, "yaml_file", None)
     if yaml_file:
         sources.append(str(yaml_file))
+    yaml_dict = getattr(inner, "yaml", None) if inner is not None else None
+    family_from_cfg = _family_yoloe_yaml_from_cfg_dict(yaml_dict if isinstance(yaml_dict, dict) else None)
+    if family_from_cfg:
+        candidates.append(family_from_cfg)
 
     for src in sources:
         stem = Path(str(src)).stem.lower()
         detect_stem = stem.replace("-seg-pf", "").replace("-seg", "")
-        if detect_stem:
+        if detect_stem and detect_stem not in {"best", "last"}:
             candidates.append(f"{detect_stem}.yaml")
             candidates.append(str(Path(str(src)).with_name(f"{detect_stem}.yaml")))
         fam = _family_yoloe_yaml_from_stem(stem)
         if fam:
             candidates.append(fam)
+    # Hard fallback for generic ckpt names like best.pt/last.pt.
+    candidates.extend(["yoloe-v8.yaml", "yoloe-11.yaml", "yoloe-26.yaml"])
 
     seen = set()
     for cand in candidates:
@@ -154,10 +189,17 @@ def _adapt_yoloe_seg_checkpoint_for_detect_eval(
     model_ref: str,
     class_names: list[str],
     *,
+    detect_yaml_override: str | None = None,
+    scale_override: str | None = None,
     zero_embedding_fallback: bool = True,
 ) -> YOLO:
-    detect_yaml = _infer_detect_yaml_for_yoloe_seg(model_ref, loaded)
+    if detect_yaml_override:
+        detect_yaml = str(check_yaml(detect_yaml_override, hard=True))
+    else:
+        detect_yaml = _infer_detect_yaml_for_yoloe_seg(model_ref, loaded)
     detect_cfg = yaml_model_load(detect_yaml)
+    if scale_override:
+        detect_cfg["scale"] = str(scale_override)
     model = YOLOEModel(detect_cfg, ch=3, nc=len(class_names), verbose=False)
     model.load(model_ref)  # intersect load
 
@@ -190,7 +232,13 @@ def _adapt_yoloe_seg_checkpoint_for_detect_eval(
 
 
 def _maybe_adapt_model_for_eval(
-    loaded: YOLO, model_ref: str, class_names: list[str], *, zero_embedding_fallback: bool
+    loaded: YOLO,
+    model_ref: str,
+    class_names: list[str],
+    *,
+    detect_yaml_override: str | None,
+    scale_override: str | None,
+    zero_embedding_fallback: bool,
 ) -> YOLO:
     inner = getattr(loaded, "model", None)
     task = str(getattr(inner, "task", getattr(loaded, "task", "")) or "").lower()
@@ -206,6 +254,8 @@ def _maybe_adapt_model_for_eval(
             loaded,
             model_ref,
             class_names,
+            detect_yaml_override=detect_yaml_override,
+            scale_override=scale_override,
             zero_embedding_fallback=zero_embedding_fallback,
         )
     return loaded
@@ -242,6 +292,18 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Disable zero-text-embedding fallback when adapting YOLOE seg checkpoint to detect eval.",
     )
+    parser.add_argument(
+        "--yoloe-detect-yaml",
+        type=str,
+        default=None,
+        help="Optional explicit YOLOE detect YAML for seg->detect eval adaptation (e.g. yoloe-v8.yaml).",
+    )
+    parser.add_argument(
+        "--yoloe-scale",
+        type=str,
+        default=None,
+        help="Optional YOLOE scale override when using family detect YAML (n/s/m/l/x).",
+    )
     return parser.parse_args()
 
 
@@ -277,6 +339,8 @@ def main() -> None:
         model,
         args.model,
         primary_names,
+        detect_yaml_override=args.yoloe_detect_yaml,
+        scale_override=args.yoloe_scale,
         zero_embedding_fallback=not args.disable_yoloe_zero_embedding_fallback,
     )
     LOGGER.info(f"Loaded model for evaluation: {args.model}")
