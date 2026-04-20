@@ -32,7 +32,7 @@ for _c in [_script_dir, os.path.join(_script_dir, "ultralytics")]:
 
 import yaml, numpy as np, torch
 
-DEFAULT_MODEL  = r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\ultralytics\best.pt"
+DEFAULT_MODEL  = r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\ultralytics\purefreeze20_nodistill.pt"
 DEFAULT_DATA   = r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\datasets\tank_extratest_eval.yaml"
 DEFAULT_CONF   = 0.1
 DEFAULT_IOU    = 0.5
