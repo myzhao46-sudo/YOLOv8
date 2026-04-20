@@ -41,6 +41,11 @@ class IncrementalDistillTrainer(DetectionTrainer):
         "distill_teacher_old_class_ids",
         "distill_feature_mode",
         "distill_feature_old_score_thr",
+        "distill_cls_old_score_thr",
+        "distill_start_epoch",
+        "distill_ramp_epochs",
+        "distill_relax_single_class_teacher",
+        "distill_single_class_teacher_scale",
         "distill_student_old_class",
         "distill_teacher_old_class",
         "old_val_data",
@@ -680,10 +685,29 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 f"Unsupported distill_feature_mode='{feature_mode}'. Supported: ['global', 'old_only']."
             )
 
+        feature_weight = float(self._get_arg("distill_feature_weight", 0.25))
+        cls_weight = float(self._get_arg("distill_cls_weight", 0.5))
+        relax_single_teacher = self._get_bool("distill_relax_single_class_teacher", default=True)
+        relax_scale = min(max(float(self._get_arg("distill_single_class_teacher_scale", 0.35)), 0.0), 1.0)
+        if (
+            relax_single_teacher
+            and self.enable_distillation
+            and len(teacher_names) == 1
+            and len(student_names) > 1
+            and (feature_weight > 0.0 or cls_weight > 0.0)
+        ):
+            feature_weight *= relax_scale
+            cls_weight *= relax_scale
+            if RANK in {-1, 0}:
+                LOGGER.info(
+                    "Single-class teacher detected with multi-class student; relaxed distillation weights for new-class "
+                    f"plasticity: scale={relax_scale}, feature_w={feature_weight}, cls_w={cls_weight}"
+                )
+
         distill_cfg = DistillationConfig(
             enabled=self.enable_distillation and self.teacher_model is not None,
-            feature_weight=float(self._get_arg("distill_feature_weight", 0.25)),
-            cls_weight=float(self._get_arg("distill_cls_weight", 0.5)),
+            feature_weight=feature_weight,
+            cls_weight=cls_weight,
             temperature=float(self._get_arg("distill_temperature", 2.0)),
             student_old_class_index=student_old_idx,
             teacher_old_class_index=teacher_old_idx,
@@ -692,6 +716,9 @@ class IncrementalDistillTrainer(DetectionTrainer):
             teacher_old_class_indices=tuple(teacher_old_ids),
             feature_mode=feature_mode,
             feature_old_score_thresh=float(self._get_arg("distill_feature_old_score_thr", 0.3)),
+            cls_old_score_thresh=float(self._get_arg("distill_cls_old_score_thr", 0.0)),
+            start_epoch=int(self._get_arg("distill_start_epoch", 0)),
+            ramp_epochs=int(self._get_arg("distill_ramp_epochs", 0)),
         )
         student.criterion = DistillationLossWrapper(
             base_criterion=student.criterion,
@@ -723,6 +750,9 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 f"auto_class_align={auto_class_align}, "
                 f"feature_mode={distill_cfg.feature_mode}, "
                 f"feature_old_thr={distill_cfg.feature_old_score_thresh}, "
+                f"cls_old_thr={distill_cfg.cls_old_score_thresh}, "
+                f"start_epoch={distill_cfg.start_epoch}, "
+                f"ramp_epochs={distill_cfg.ramp_epochs}, "
                 f"student_old_idx={distill_cfg.student_old_class_index}, "
                 f"teacher_old_idx={distill_cfg.teacher_old_class_index}, "
                 f"student_head={student_head.__class__.__name__.lower() if student_head is not None else 'unknown'}"

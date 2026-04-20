@@ -34,6 +34,11 @@ distill_old_class_ids: [0]
 distill_teacher_old_class_ids: [0]
 distill_feature_mode: old_only # global | old_only
 distill_feature_old_score_thr: 0.3
+distill_cls_old_score_thr: 0.4 # apply cls distill only on teacher old-class high-confidence positions (0 disables)
+distill_start_epoch: 10 # keep first epochs free for new-class fitting
+distill_ramp_epochs: 20 # linearly ramp distill strength after start_epoch
+distill_relax_single_class_teacher: True # auto downscale distill when teacher has 1 class and student has >1 classes
+distill_single_class_teacher_scale: 0.35
 distill_student_old_class: 0
 distill_teacher_old_class: 0
 distill_student_old_class_name:
@@ -43,7 +48,7 @@ distill_teacher_old_class_name:
 # For incremental ship/oiltank experiments, keep class order aligned with dataset names.
 yoloe_prompt_mode: fixed_text
 yoloe_class_names:
-yoloe_prompt_alias_names:
+yoloe_prompt_alias_names: # optional prompt aliases; canonical names must still match dataset order
 yoloe_allow_seg_init: True # allow non-prompt-free yoloe-*-seg.pt as detect-student initialization
 
 # Replay (v1 interface)

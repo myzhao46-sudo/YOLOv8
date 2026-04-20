@@ -27,6 +27,9 @@ class DistillationConfig:
     teacher_old_class_indices: tuple[int, ...] = ()
     feature_mode: str = "global"  # global | old_only
     feature_old_score_thresh: float = 0.3
+    cls_old_score_thresh: float = 0.0
+    start_epoch: int = 0
+    ramp_epochs: int = 0
 
 
 def load_teacher_model(weights: str, device: torch.device) -> torch.nn.Module:
@@ -47,6 +50,7 @@ class DistillationLossWrapper:
         self.teacher_model = teacher_model
         self.cfg = cfg
         self._teacher_head_train_hint_logged = False
+        self._epoch = 0
 
     def __getattr__(self, name: str):
         # Delegate unknown attributes to wrapped criterion (e.g., parse_output, assigner, update).
@@ -123,6 +127,16 @@ class DistillationLossWrapper:
         finally:
             if isinstance(head, torch.nn.Module) and head_training is not None:
                 head.training = head_training
+
+    def _distill_scale(self) -> float:
+        """Epoch-based distill scaling: optional delayed start + linear ramp."""
+        start = max(int(self.cfg.start_epoch), 0)
+        ramp = max(int(self.cfg.ramp_epochs), 0)
+        if self._epoch < start:
+            return 0.0
+        if ramp <= 0:
+            return 1.0
+        return min(1.0, float(self._epoch - start + 1) / float(ramp))
 
     @staticmethod
     def _resolve_class_indices(
@@ -251,6 +265,7 @@ class DistillationLossWrapper:
         if s_scores is None or t_scores is None:
             return torch.zeros((), device=self._infer_device(student_preds, fallback=device))
 
+        cls_mask = None
         if self.cfg.cls_only_old_classes:
             s_ids = self._resolve_class_indices(
                 self.cfg.student_old_class_indices,
@@ -274,6 +289,9 @@ class DistillationLossWrapper:
             t_logits = [t_scores[:, t_ids[i], :] for i in range(pair_count)]
             s_logit = torch.cat(s_logits, dim=0)
             t_logit = torch.cat(t_logits, dim=0)
+            cls_thr = float(self.cfg.cls_old_score_thresh)
+            if cls_thr > 0:
+                cls_mask = (torch.sigmoid(t_logit.detach()) >= cls_thr).to(dtype=s_logit.dtype)
         else:
             if self.cfg.student_old_class_indices and self.cfg.teacher_old_class_indices:
                 s_ids = [min(max(int(i), 0), s_scores.shape[1] - 1) for i in self.cfg.student_old_class_indices]
@@ -304,7 +322,14 @@ class DistillationLossWrapper:
             s_logit = s_logit / t
             t_logit = t_logit / t
         target_prob = torch.sigmoid(t_logit).detach().to(dtype=s_logit.dtype)
-        cls_loss = F.binary_cross_entropy_with_logits(s_logit, target_prob)
+        if cls_mask is None:
+            cls_loss = F.binary_cross_entropy_with_logits(s_logit, target_prob)
+        else:
+            denom = cls_mask.sum()
+            if denom.item() < 1:
+                return torch.zeros((), device=self._infer_device(student_preds, fallback=device), dtype=s_logit.dtype)
+            cls_raw = F.binary_cross_entropy_with_logits(s_logit, target_prob, reduction="none")
+            cls_loss = (cls_raw * cls_mask).sum() / denom
         if t != 1.0:
             cls_loss = cls_loss * (t * t)
         return cls_loss
@@ -368,10 +393,14 @@ class DistillationLossWrapper:
                 "Classification distillation requires both student and teacher predictions to include 'scores'."
             )
 
+        distill_scale = self._distill_scale()
+        if distill_scale <= 0.0:
+            return base_total_loss, torch.cat((base_items, distill_items))
+
         feat_loss = self._feature_distill_loss(student_preds, teacher_preds, device=base_total_loss.device)
         cls_loss = self._cls_distill_loss(student_preds, teacher_preds, device=base_total_loss.device)
 
-        weighted = self.cfg.feature_weight * feat_loss + self.cfg.cls_weight * cls_loss
+        weighted = distill_scale * (self.cfg.feature_weight * feat_loss + self.cfg.cls_weight * cls_loss)
         distill_total_loss = weighted * batch["img"].shape[0]
         total_loss = base_total_loss + distill_total_loss
 
@@ -380,5 +409,6 @@ class DistillationLossWrapper:
         return total_loss, torch.cat((base_items, distill_items))
 
     def update(self) -> None:
+        self._epoch += 1
         if hasattr(self.base_criterion, "update"):
             self.base_criterion.update()
