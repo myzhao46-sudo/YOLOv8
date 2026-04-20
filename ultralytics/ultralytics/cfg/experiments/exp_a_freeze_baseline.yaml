@@ -1,0 +1,55 @@
+task: detect
+mode: train
+
+# Student setup
+model: /root/autodl-tmp/YOLOv8/ultralytics/ultralytics/best.pt
+student_arch: yoloe
+data: /root/autodl-tmp/YOLOv8/ultralytics/tmp_data/ship_oiltank_joint_abs.yaml
+epochs: 30
+lr0: 0.001
+freeze: 22
+batch: 16
+imgsz: 640
+workers: 8
+device: 0
+project: runs/detect
+name: exp_a_freeze
+exist_ok: True
+val: True
+plots: True
+
+# Clean baseline: no distillation, no replay
+experiment_mode: naive_finetune
+enable_distillation: False
+teacher_weights:
+distill_feature_weight: 0.0
+distill_cls_weight: 0.0
+distill_temperature: 1.0
+distill_only_old_classes: True
+distill_auto_class_align: False
+distill_feature_mode: old_only
+distill_feature_old_score_thr: 0.0
+distill_cls_old_score_thr: 0.0
+distill_start_epoch: 0
+distill_ramp_epochs: 0
+distill_relax_single_class_teacher: False
+distill_single_class_teacher_scale: 1.0
+
+enable_replay: False
+replay_data:
+
+# Disable slicing for this baseline
+enable_slicing: False
+cache_slices: False
+
+# YOLOE fixed-text setup
+yoloe_prompt_mode: fixed_text
+yoloe_class_names:
+yoloe_prompt_alias_names:
+yoloe_allow_seg_init: True
+yoloe_zero_embedding_fallback: True
+
+# Eval splits
+old_val_data: /root/autodl-tmp/YOLOv8/ultralytics/tmp_data/ship_old_eval_abs.yaml
+new_val_data: /root/autodl-tmp/YOLOv8/ultralytics/tmp_data/oiltank_new_eval_abs.yaml
+joint_val_data: /root/autodl-tmp/YOLOv8/ultralytics/tmp_data/ship_oiltank_joint_abs.yaml

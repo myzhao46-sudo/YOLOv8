@@ -549,6 +549,56 @@ class IncrementalDistillTrainer(DetectionTrainer):
         )
         return self._restore_path_type(img_path, sliced)
 
+    @staticmethod
+    def _layers_from_model(model: Any) -> list[Any]:
+        """Resolve YOLO layer sequence from either model.model.model or model.model."""
+        nested = getattr(getattr(model, "model", None), "model", None)
+        if isinstance(nested, (list, tuple)):
+            return list(nested)
+        if nested is not None:
+            try:
+                return list(nested)
+            except TypeError:
+                pass
+
+        direct = getattr(model, "model", None)
+        if isinstance(direct, (list, tuple)):
+            return list(direct)
+        if direct is not None:
+            try:
+                return list(direct)
+            except TypeError:
+                pass
+        return []
+
+    def _apply_layer_freeze(self, model: Any) -> None:
+        """Freeze layers [0, freeze) after weights are loaded and before optimizer is built."""
+        freeze_arg = self._get_arg("freeze", 0)
+        try:
+            freeze_n = int(freeze_arg)
+        except (TypeError, ValueError):
+            return
+        if freeze_n <= 0:
+            return
+
+        model_layers = self._layers_from_model(model)
+        if not model_layers:
+            if RANK in {-1, 0}:
+                LOGGER.warning("freeze is set but model layer sequence was not found; skip incremental layer freeze.")
+            return
+
+        freeze_n = min(freeze_n, len(model_layers))
+        for i, layer in enumerate(model_layers):
+            if i >= freeze_n:
+                break
+            for param in layer.parameters():
+                param.requires_grad = False
+
+        frozen = sum(p.numel() for p in model.parameters() if not p.requires_grad)
+        total = sum(p.numel() for p in model.parameters())
+        if RANK in {-1, 0}:
+            LOGGER.info(f"Froze layers 0..{freeze_n - 1}: {frozen:,}/{total:,} ({100 * frozen / max(total, 1):.1f}%)")
+
     def build_dataset(self, img_path: str, mode: str = "train", batch: int | None = None):
         img_path = self._merge_replay_paths(img_path, mode)
         img_path = self._apply_slicing(img_path, mode)
@@ -556,7 +606,9 @@ class IncrementalDistillTrainer(DetectionTrainer):
 
     def get_model(self, cfg: str | None = None, weights: str | None = None, verbose: bool = True):
         if self.student_arch != "yoloe":
-            return super().get_model(cfg=cfg, weights=weights, verbose=verbose)
+            model = super().get_model(cfg=cfg, weights=weights, verbose=verbose)
+            self._apply_layer_freeze(model)
+            return model
 
         cfg_for_build = self._validate_yoloe_student_source(cfg=cfg, weights=weights)
         model = YOLOEModel(
@@ -568,11 +620,15 @@ class IncrementalDistillTrainer(DetectionTrainer):
         if weights:
             model.load(weights)
         self._configure_yoloe_student_model(model)
+        self._apply_layer_freeze(model)
         return model
 
     def get_validator(self):
         """Return DetectionValidator with extended loss columns."""
-        self.loss_names = ("box_loss", "cls_loss", "dfl_loss", "distill_feat_loss", "distill_cls_loss")
+        if self.enable_distillation:
+            self.loss_names = ("box_loss", "cls_loss", "dfl_loss", "distill_feat_loss", "distill_cls_loss")
+        else:
+            self.loss_names = ("box_loss", "cls_loss", "dfl_loss")
         return yolo.detect.DetectionValidator(
             self.test_loader,
             save_dir=self.save_dir,
@@ -589,6 +645,10 @@ class IncrementalDistillTrainer(DetectionTrainer):
 
     def _setup_train(self):
         super()._setup_train()
+        if not self.enable_distillation:
+            if RANK in {-1, 0}:
+                LOGGER.info("Distillation disabled: keep base detection criterion without distillation wrapper.")
+            return
         self._attach_distillation_criterion()
 
     def _ensure_loss_model_attrs(self, model: Any) -> None:
