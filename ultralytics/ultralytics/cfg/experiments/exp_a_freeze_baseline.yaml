@@ -4,6 +4,7 @@ mode: train
 # Student setup
 model: /root/autodl-tmp/YOLOv8/ultralytics/ultralytics/best.pt
 student_arch: yoloe
+student_scale: s
 data: /root/autodl-tmp/YOLOv8/ultralytics/tmp_data/ship_oiltank_joint_abs.yaml
 epochs: 30
 lr0: 0.001

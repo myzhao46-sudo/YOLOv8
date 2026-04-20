@@ -20,7 +20,7 @@ from ultralytics.data.sliding_window import SliceConfig, prepare_sliced_image_pa
 from ultralytics.nn.tasks import YOLOEModel, yaml_model_load
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, YAML
 from ultralytics.utils.checks import check_yaml
-from ultralytics.utils.torch_utils import unwrap_model
+from ultralytics.utils.torch_utils import intersect_dicts, unwrap_model
 
 
 class IncrementalDistillTrainer(DetectionTrainer):
@@ -59,6 +59,7 @@ class IncrementalDistillTrainer(DetectionTrainer):
         "cache_slices",
         "slice_cache_dir",
         "student_arch",
+        "student_scale",
         "yoloe_class_names",
         "yoloe_prompt_alias_names",
         "yoloe_prompt_mode",
@@ -367,6 +368,170 @@ class IncrementalDistillTrainer(DetectionTrainer):
         stem = stem.lower()
         return "-seg" in stem and "-seg-det" not in stem
 
+    @staticmethod
+    def _normalize_scale_token(value: Any) -> str:
+        token = str(value).strip().lower() if value is not None else ""
+        return token if token in {"n", "s", "m", "l", "x"} else ""
+
+    @staticmethod
+    def _get_head_from_model(model_like: Any) -> Any:
+        m = getattr(model_like, "model", None)
+        if m is None:
+            return None
+        try:
+            if len(m):
+                return m[-1]
+        except Exception:
+            return None
+        return None
+
+    @staticmethod
+    def _first_conv_out_channels(model_like: Any) -> int | None:
+        """Infer output channels of first backbone conv for scale probing."""
+        m = getattr(model_like, "model", None)
+        if m is not None:
+            try:
+                first = m[0]
+                conv = getattr(first, "conv", None)
+                if isinstance(conv, torch.nn.Conv2d):
+                    return int(conv.out_channels)
+            except Exception:
+                pass
+        for mod in getattr(model_like, "modules", lambda: [])():
+            if isinstance(mod, torch.nn.Conv2d):
+                return int(mod.out_channels)
+        return None
+
+    @staticmethod
+    def _model_param_count(model_like: Any) -> int:
+        return int(sum(p.numel() for p in getattr(model_like, "parameters", lambda: [])()))
+
+    def _infer_scale_from_checkpoint_shape(
+        self,
+        detect_cfg: dict[str, Any],
+        *,
+        weights: Any,
+    ) -> str:
+        """Infer YOLOE scale by matching first conv channels (and params as tie-break)."""
+        if not isinstance(detect_cfg, dict) or not isinstance(detect_cfg.get("scales", None), dict):
+            return ""
+        source_c1 = self._first_conv_out_channels(weights)
+        if source_c1 is None:
+            return ""
+
+        source_params = self._model_param_count(weights)
+        candidates = [self._normalize_scale_token(k) for k in detect_cfg.get("scales", {}).keys()]
+        candidates = [c for c in candidates if c]
+        if not candidates:
+            return ""
+
+        best_scale = ""
+        best_param_gap = float("inf")
+        for cand in candidates:
+            probe_cfg = deepcopy(detect_cfg)
+            probe_cfg["scale"] = cand
+            try:
+                probe = YOLOEModel(
+                    probe_cfg,
+                    ch=self.data["channels"],
+                    nc=max(int(self.data.get("nc", 1)), 1),
+                    verbose=False,
+                )
+            except Exception:
+                continue
+            probe_c1 = self._first_conv_out_channels(probe)
+            if probe_c1 != source_c1:
+                del probe
+                continue
+            param_gap = abs(self._model_param_count(probe) - source_params) if source_params > 0 else 0
+            if best_scale == "" or param_gap < best_param_gap:
+                best_scale = cand
+                best_param_gap = param_gap
+            del probe
+        return best_scale
+
+    def _resolve_yoloe_scale(
+        self,
+        detect_cfg: dict[str, Any],
+        *,
+        model_stem: str,
+        cfg_stem: str,
+        cfg: str | dict | None,
+        weights: Any,
+    ) -> str:
+        """Resolve scale from explicit arg, metadata, and checkpoint-shape inference."""
+        explicit = self._normalize_scale_token(self._get_arg("student_scale", None))
+        if explicit:
+            return explicit
+
+        stem_scale = self._extract_yoloe_scale(model_stem) or self._extract_yoloe_scale(cfg_stem)
+        stem_scale = self._normalize_scale_token(stem_scale)
+        if stem_scale:
+            return stem_scale
+
+        if isinstance(cfg, dict):
+            cfg_scale = self._normalize_scale_token(cfg.get("scale", ""))
+            if cfg_scale:
+                return cfg_scale
+
+        w_yaml = getattr(weights, "yaml", None)
+        if isinstance(w_yaml, dict):
+            wy_scale = self._normalize_scale_token(w_yaml.get("scale", ""))
+            if wy_scale:
+                return wy_scale
+
+        inferred = self._infer_scale_from_checkpoint_shape(detect_cfg, weights=weights)
+        if inferred:
+            return inferred
+        return ""
+
+    def _align_fixed_text_head_from_source(self, model: YOLOEModel, weights: Any) -> None:
+        """Align detect head prompt modules with source head when source uses Identity/no-param variants."""
+        src_head = self._get_head_from_model(weights)
+        dst_head = self._get_head_from_model(model)
+        if src_head is None or dst_head is None:
+            return
+
+        changed = []
+        if hasattr(src_head, "reprta") and hasattr(dst_head, "reprta"):
+            src_reprta = getattr(src_head, "reprta")
+            if isinstance(src_reprta, torch.nn.Identity):
+                dst_head.reprta = torch.nn.Identity()
+                changed.append("reprta->Identity")
+
+        if hasattr(src_head, "savpe") and hasattr(dst_head, "savpe"):
+            src_savpe = getattr(src_head, "savpe")
+            if isinstance(src_savpe, torch.nn.Identity):
+                dst_head.savpe = torch.nn.Identity()
+                changed.append("savpe->Identity")
+
+        if changed and RANK in {-1, 0}:
+            LOGGER.info(f"YOLOE fixed-text head alignment from source checkpoint: {', '.join(changed)}")
+
+    def _report_weight_transfer(self, model: Any, weights: Any) -> None:
+        """Emit transfer diagnostics and list unmatched target keys when excessive mismatches occur."""
+        source = weights.get("model", None) if isinstance(weights, dict) else weights
+        if source is None or not hasattr(source, "state_dict"):
+            return
+
+        source_state = source.state_dict()
+        target_state = model.state_dict()
+        matched = intersect_dicts(source_state, target_state)
+        matched_keys = set(matched.keys())
+        transferred = len(matched_keys)
+        total = len(target_state)
+        missed_keys = [k for k in target_state.keys() if k not in matched_keys]
+
+        if RANK in {-1, 0}:
+            LOGGER.info(f"Weight transfer diagnostics: transferred={transferred}/{total}, missed={len(missed_keys)}")
+        if len(missed_keys) > 10 and RANK in {-1, 0}:
+            LOGGER.warning(
+                f"WARNING: {len(missed_keys)}/{total} weight tensors NOT transferred! "
+                "Likely model scale mismatch. Check student vs source scale."
+            )
+            for key in missed_keys[:20]:
+                LOGGER.warning(f"  NOT transferred: {key}")
+
     def _validate_yoloe_student_source(self, cfg: str | dict | None, weights: Any) -> str | dict[str, Any]:
         """Validate YOLOE source and return cfg (str or dict) used to build YOLOEModel."""
         allow_seg_init = self._get_bool("yoloe_allow_seg_init", default=True)
@@ -419,9 +584,6 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 weights=weights,
                 cfg=cfg if isinstance(cfg, dict) else None,
             )
-            scale = self._extract_yoloe_scale(model_stem) or self._extract_yoloe_scale(cfg_stem) or (
-                str(cfg.get("scale", "")) if isinstance(cfg, dict) else ""
-            )
             try:
                 detect_cfg = yaml_model_load(detect_yaml)
             except Exception as e:
@@ -429,12 +591,19 @@ class IncrementalDistillTrainer(DetectionTrainer):
                     "YOLOE segmentation source detected, but failed to resolve matching detect YAML "
                     f"('{detect_yaml}'). Please provide a valid YOLOE detect YAML/checkpoint."
                 ) from e
-            # Keep the original scale (n/s/m/l/x) from checkpoint stem when YAML uses family naming (e.g. yoloe-26.yaml).
+            scale = self._resolve_yoloe_scale(
+                detect_cfg,
+                model_stem=model_stem,
+                cfg_stem=cfg_stem,
+                cfg=cfg,
+                weights=weights,
+            )
             if scale:
                 detect_cfg["scale"] = scale
             cfg_for_build = detect_cfg
             if RANK in {-1, 0}:
-                LOGGER.warning(
+                level_log = LOGGER.warning if not scale else LOGGER.info
+                level_log(
                     "YOLOE segmentation source detected; constructing detect student from "
                     f"'{detect_yaml}' (scale='{detect_cfg.get('scale', '')}') and loading intersected pretrained weights."
                 )
@@ -618,7 +787,9 @@ class IncrementalDistillTrainer(DetectionTrainer):
             verbose=verbose and RANK == -1,
         )
         if weights:
+            self._align_fixed_text_head_from_source(model, weights)
             model.load(weights)
+            self._report_weight_transfer(model, weights)
         self._configure_yoloe_student_model(model)
         self._apply_layer_freeze(model)
         return model
