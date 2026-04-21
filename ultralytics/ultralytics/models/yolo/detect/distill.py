@@ -201,12 +201,13 @@ class DistillationLossWrapper:
     ) -> torch.Tensor:
         sf = student_preds.get("feats", None)
         tf = teacher_preds.get("feats", None)
+        out_device = self._infer_device(student_preds, fallback=device)
         if not isinstance(sf, list) or not isinstance(tf, list) or not sf or not tf:
-            return torch.zeros((), device=self._infer_device(student_preds, fallback=device))
+            return torch.zeros((), device=out_device, dtype=torch.float32)
 
         feature_mode = str(self.cfg.feature_mode).strip().lower()
         use_old_only = feature_mode == "old_only"
-        loss = 0.0
+        loss = torch.zeros((), device=out_device, dtype=sf[0].dtype)
         n = min(len(sf), len(tf))
         old_prob_maps = None
         if use_old_only:
@@ -214,11 +215,11 @@ class DistillationLossWrapper:
             old_prob_maps = self._build_teacher_old_prob_maps(
                 teacher_preds,
                 teacher_shapes,
-                device=self._infer_device(student_preds, fallback=device),
+                device=out_device,
                 dtype=sf[0].dtype,
             )
             if not old_prob_maps:
-                return torch.zeros((), device=self._infer_device(student_preds, fallback=device), dtype=sf[0].dtype)
+                return torch.zeros((), device=out_device, dtype=sf[0].dtype)
 
         valid_levels = 0
         for i in range(n):
@@ -399,6 +400,10 @@ class DistillationLossWrapper:
 
         feat_loss = self._feature_distill_loss(student_preds, teacher_preds, device=base_total_loss.device)
         cls_loss = self._cls_distill_loss(student_preds, teacher_preds, device=base_total_loss.device)
+        if not isinstance(feat_loss, torch.Tensor):
+            feat_loss = torch.as_tensor(feat_loss, device=base_total_loss.device, dtype=base_total_loss.dtype)
+        if not isinstance(cls_loss, torch.Tensor):
+            cls_loss = torch.as_tensor(cls_loss, device=base_total_loss.device, dtype=base_total_loss.dtype)
 
         weighted = distill_scale * (self.cfg.feature_weight * feat_loss + self.cfg.cls_weight * cls_loss)
         distill_total_loss = weighted * batch["img"].shape[0]
