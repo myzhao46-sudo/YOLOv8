@@ -32,8 +32,8 @@ for _c in [_script_dir, os.path.join(_script_dir, "ultralytics")]:
 
 import yaml, numpy as np, torch
 
-DEFAULT_MODEL  = r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8\best.pt" 
-DEFAULT_DATA   = r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\datasets\tank_extratest_eval_reinforce.yaml"
+DEFAULT_MODEL  = r"C:\Users\DOCTOR\Desktop\yoloe-v8-s_distill_noreplay_300\exp_b_clean_freeze22_distill.pt" 
+DEFAULT_DATA   = r"E:\Mass\groupohtherdata\Ship_moti\sar_only\ship_extratest_eval_reinforce.yaml"
 DEFAULT_CONF   = 0.1
 DEFAULT_IOU    = 0.5
 DEFAULT_IMGSZ  = 640
