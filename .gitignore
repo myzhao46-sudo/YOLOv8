@@ -10,3 +10,20 @@ ultralytics/**/.slice_cache/
 ultralytics/datasets/
 ultralytics/tmp_data/cache/
 mobileclip_blt.ts
+
+# Jupyter temporary files
+.ipynb_checkpoints/
+Untitled.ipynb
+
+# Large local model/script artifacts
+mobileclip2_b.ts
+*.pt
+*.pth
+*.onnx
+*.engine
+*.cache
+
+# training outputs
+runs/
+logcopy/
+datasets/

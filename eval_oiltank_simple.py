@@ -33,8 +33,8 @@ if LOCAL_ULTRALYTICS_ROOT.exists():
 from ultralytics import YOLO
 
 
-DEFAULT_MODEL = Path(r"C:\Users\DOCTOR\Desktop\yoloe-v8-s_distill_noreplay_300\yoloe-v8-s_distill_noreplay_300.pt")
-DEFAULT_DATASET_ROOT = Path(r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\datasets\SSDD")
+DEFAULT_MODEL = Path(r"/root/autodl-tmp/YOLOv8/ultralytics/logcopy/yoloe-v8-s_distill_noreplay_300.pt")
+DEFAULT_DATASET_ROOT = Path(r"/root/autodl-tmp/YOLOv8/ultralytics/datasets/SSDD")
 
 
 def print_section(title: str) -> None:
