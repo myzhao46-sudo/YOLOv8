@@ -1,10 +1,11 @@
-path: /root/autodl-tmp/YOLOv8/ultralytics/datasets
 train:
-  - SSDD/images/train
-  - oiltank/images/train
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/SSDD/images/train
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/oiltank/images/train
+
 val:
-  - SSDD/images/val
-  - oiltank/images/val
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/SSDD/images/val
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/oiltank/images/val
+
 names:
   0: ship
   1: tank
