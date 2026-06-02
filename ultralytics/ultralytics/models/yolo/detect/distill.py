@@ -6,9 +6,11 @@ from dataclasses import dataclass
 from typing import Any
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 from ultralytics.nn.tasks import load_checkpoint
+from ultralytics.utils.ops import xywh2xyxy
 from ultralytics.utils import LOGGER
 
 
@@ -32,6 +34,29 @@ class DistillationConfig:
     ramp_epochs: int = 0
 
 
+@dataclass
+class DINOFeatureKDConfig:
+    """DINO feature KD configuration."""
+
+    enabled: bool = False
+    model_name: str = "timm/convnext_tiny.dinov3_lvd1689m"
+    model_backend: str = "timm"
+    frozen: bool = True
+    no_grad: bool = True
+    loss_weight: float = 0.05
+    target_class_names: tuple[str, ...] = ("tank", "oiltank")
+    region_source: str = "gt_box"
+    region_only: bool = True
+    max_regions_per_image: int = 16
+    student_feature_source: str = "head_cv4"
+    teacher_feature_source: str = "last_feature_map"
+    projection_dim: int = 256
+    loss_type: str = "cosine"
+    loss_every_n_batches: int = 1
+    save_teacher: bool = False
+    debug_batches: int = 5
+
+
 def load_teacher_model(weights: str, device: torch.device) -> torch.nn.Module:
     """Load teacher checkpoint as a frozen eval model."""
     model, _ = load_checkpoint(weights, device=device, inplace=True, fuse=False)
@@ -39,6 +64,28 @@ def load_teacher_model(weights: str, device: torch.device) -> torch.nn.Module:
     for p in model.parameters():
         p.requires_grad_(False)
     LOGGER.info(f"Loaded frozen teacher model from {weights}")
+    return model
+
+
+def build_dino_feature_teacher(model_name: str, backend: str, device: torch.device) -> torch.nn.Module:
+    """Build a frozen DINO feature teacher model."""
+    backend_norm = str(backend).strip().lower()
+    if backend_norm != "timm":
+        raise ValueError(f"Unsupported dino_model_backend='{backend}'. Currently only 'timm' is supported.")
+    try:
+        import timm
+    except Exception as e:
+        raise RuntimeError("timm is required for DINO feature KD. Please run: pip install timm") from e
+
+    timm_name = str(model_name).strip()
+    if timm_name.startswith("timm/"):
+        timm_name = timm_name.split("/", 1)[1]
+
+    model = timm.create_model(timm_name, pretrained=True, features_only=True)
+    model.to(device)
+    model.eval()
+    for p in model.parameters():
+        p.requires_grad_(False)
     return model
 
 
@@ -206,7 +253,7 @@ class DistillationLossWrapper:
 
         feature_mode = str(self.cfg.feature_mode).strip().lower()
         use_old_only = feature_mode == "old_only"
-        loss = 0.0
+        loss = torch.zeros((), device=self._infer_device(student_preds, fallback=device), dtype=sf[0].dtype)
         n = min(len(sf), len(tf))
         old_prob_maps = None
         if use_old_only:
@@ -410,5 +457,351 @@ class DistillationLossWrapper:
 
     def update(self) -> None:
         self._epoch += 1
+        if hasattr(self.base_criterion, "update"):
+            self.base_criterion.update()
+
+
+class DINOFeatureKDLossWrapper:
+    """Wrap criterion with optional DINO region feature KD."""
+
+    def __init__(
+        self,
+        base_criterion: Any,
+        dino_teacher: nn.Module | None,
+        cfg: DINOFeatureKDConfig,
+        *,
+        student_model: nn.Module | None = None,
+        target_class_ids: tuple[int, ...] = (),
+        class_names: tuple[str, ...] = (),
+    ):
+        self.base_criterion = base_criterion
+        self.dino_teacher = dino_teacher
+        self.cfg = cfg
+        self.target_class_ids = tuple(int(x) for x in target_class_ids)
+        self.class_names = tuple(str(x) for x in class_names)
+        self._batch_calls = 0
+        self._student_hook_features: list[torch.Tensor | None] = []
+        self._hook_handles: list[Any] = []
+        self._last_student_shape: tuple[int, ...] | None = None
+        self._last_teacher_shape: tuple[int, ...] | None = None
+
+        proj_dim = max(int(self.cfg.projection_dim), 1)
+        self.student_projector = nn.LazyLinear(proj_dim, bias=True)
+        self.teacher_projector = nn.LazyLinear(proj_dim, bias=True)
+        self.student_projector.train()
+        self.teacher_projector.train()
+        self._register_student_feature_hooks(student_model)
+
+    def __getattr__(self, name: str):
+        base = self.__dict__.get("base_criterion", None)
+        if base is None:
+            raise AttributeError(name)
+        return getattr(base, name)
+
+    def __getstate__(self) -> dict[str, Any]:
+        """Keep checkpoints clean: no DINO teacher and no transient hook handles."""
+        state = self.__dict__.copy()
+        state["dino_teacher"] = None
+        state["_hook_handles"] = []
+        state["_student_hook_features"] = []
+        return state
+
+    def _register_student_feature_hooks(self, student_model: nn.Module | None) -> None:
+        if student_model is None:
+            return
+        source = str(self.cfg.student_feature_source).strip().lower()
+        if source != "head_cv4":
+            return
+        head = None
+        model_list = getattr(student_model, "model", None)
+        if model_list is not None:
+            try:
+                if len(model_list):
+                    head = model_list[-1]
+            except Exception:
+                head = None
+        cv4 = getattr(head, "cv4", None) if head is not None else None
+        if not isinstance(cv4, nn.ModuleList) or len(cv4) == 0:
+            LOGGER.warning(
+                "DINO student feature source 'head_cv4' requested but YOLO head has no cv4 module list; "
+                "falling back to neck_last."
+            )
+            self.cfg.student_feature_source = "neck_last"
+            return
+        self._student_hook_features = [None for _ in range(len(cv4))]
+
+        for i, module in enumerate(cv4):
+            def _pre_hook(_, inputs, idx=i):
+                if not inputs:
+                    return
+                feat = inputs[0]
+                if isinstance(feat, torch.Tensor):
+                    self._student_hook_features[idx] = feat
+
+            self._hook_handles.append(module.register_forward_pre_hook(_pre_hook))
+
+    @staticmethod
+    def _parse_preds(
+        preds: dict[str, torch.Tensor] | tuple[torch.Tensor, dict[str, torch.Tensor]],
+    ) -> dict[str, torch.Tensor]:
+        if isinstance(preds, tuple):
+            preds = preds[1]
+        if isinstance(preds, dict) and "one2many" in preds:
+            preds = preds["one2many"]
+        return preds if isinstance(preds, dict) else {}
+
+    @staticmethod
+    def _extract_last_feature_map(obj: Any) -> torch.Tensor | None:
+        if isinstance(obj, torch.Tensor) and obj.ndim == 4:
+            return obj
+        if isinstance(obj, dict):
+            keys = list(obj.keys())
+            for k in reversed(keys):
+                hit = DINOFeatureKDLossWrapper._extract_last_feature_map(obj[k])
+                if hit is not None:
+                    return hit
+            return None
+        if isinstance(obj, (list, tuple)):
+            for item in reversed(obj):
+                hit = DINOFeatureKDLossWrapper._extract_last_feature_map(item)
+                if hit is not None:
+                    return hit
+        return None
+
+    def _get_student_feature(self, student_preds: dict[str, torch.Tensor]) -> torch.Tensor | None:
+        source = str(self.cfg.student_feature_source).strip().lower()
+        if source == "head_cv4":
+            for feat in reversed(self._student_hook_features):
+                if isinstance(feat, torch.Tensor):
+                    return feat
+        feats = student_preds.get("feats", None)
+        if not isinstance(feats, list) or not feats:
+            return None
+        if source == "neck_p3":
+            return feats[0]
+        return feats[-1]
+
+    def _get_teacher_feature(self, images: torch.Tensor) -> torch.Tensor | None:
+        if self.dino_teacher is None:
+            return None
+        if self.cfg.no_grad:
+            with torch.no_grad():
+                out = self.dino_teacher(images)
+        else:
+            out = self.dino_teacher(images)
+        return self._extract_last_feature_map(out)
+
+    @staticmethod
+    def _collect_image_boxes_xyxy(
+        batch: dict[str, torch.Tensor],
+        target_class_ids: tuple[int, ...],
+        image_h: int,
+        image_w: int,
+        device: torch.device,
+    ) -> dict[int, torch.Tensor]:
+        if not target_class_ids:
+            return {}
+        cls = batch["cls"].view(-1).to(device=device).long()
+        batch_idx = batch["batch_idx"].view(-1).to(device=device).long()
+        bboxes = batch["bboxes"].view(-1, 4).to(device=device)
+        class_mask = torch.zeros_like(cls, dtype=torch.bool)
+        for cid in target_class_ids:
+            class_mask |= cls == int(cid)
+        if not class_mask.any():
+            return {}
+        selected_boxes = bboxes[class_mask]
+        selected_batch_idx = batch_idx[class_mask]
+        scale = torch.tensor([image_w, image_h, image_w, image_h], device=device, dtype=selected_boxes.dtype)
+        boxes_xyxy = xywh2xyxy(selected_boxes * scale)
+        boxes_xyxy[:, [0, 2]] = boxes_xyxy[:, [0, 2]].clamp_(0, float(image_w))
+        boxes_xyxy[:, [1, 3]] = boxes_xyxy[:, [1, 3]].clamp_(0, float(image_h))
+
+        out: dict[int, list[torch.Tensor]] = {}
+        for i in range(boxes_xyxy.shape[0]):
+            bi = int(selected_batch_idx[i].item())
+            x1, y1, x2, y2 = boxes_xyxy[i]
+            if (x2 - x1) < 1 or (y2 - y1) < 1:
+                continue
+            out.setdefault(bi, []).append(boxes_xyxy[i])
+        return {k: torch.stack(v, dim=0) for k, v in out.items() if v}
+
+    @staticmethod
+    def _region_pool_from_boxes(
+        feat_map: torch.Tensor,
+        boxes_by_image: dict[int, torch.Tensor],
+        image_h: int,
+        image_w: int,
+        max_regions_per_image: int,
+    ) -> torch.Tensor | None:
+        if feat_map.ndim != 4:
+            return None
+        _, _, fh, fw = feat_map.shape
+        pooled = []
+        scale_x = fw / max(float(image_w), 1.0)
+        scale_y = fh / max(float(image_h), 1.0)
+        for bi, boxes in boxes_by_image.items():
+            if bi >= feat_map.shape[0]:
+                continue
+            limit = min(int(boxes.shape[0]), max(int(max_regions_per_image), 1))
+            for box in boxes[:limit]:
+                x1, y1, x2, y2 = box
+                fx1 = int(torch.floor(x1 * scale_x).item())
+                fy1 = int(torch.floor(y1 * scale_y).item())
+                fx2 = int(torch.ceil(x2 * scale_x).item())
+                fy2 = int(torch.ceil(y2 * scale_y).item())
+                fx1 = min(max(fx1, 0), fw - 1)
+                fy1 = min(max(fy1, 0), fh - 1)
+                fx2 = min(max(fx2, fx1 + 1), fw)
+                fy2 = min(max(fy2, fy1 + 1), fh)
+                patch = feat_map[bi : bi + 1, :, fy1:fy2, fx1:fx2]
+                if patch.numel() == 0:
+                    continue
+                pooled.append(patch.mean(dim=(2, 3)).squeeze(0))
+        if not pooled:
+            return None
+        return torch.stack(pooled, dim=0)
+
+    @staticmethod
+    def _any_nonzero_grad(model: nn.Module | None) -> bool:
+        if model is None:
+            return False
+        for p in model.parameters():
+            if p.grad is not None and torch.count_nonzero(p.grad).item() > 0:
+                return True
+        return False
+
+    def _dino_feature_loss(
+        self,
+        student_preds: dict[str, torch.Tensor],
+        batch: dict[str, torch.Tensor],
+        *,
+        device: torch.device,
+        dtype: torch.dtype,
+    ) -> tuple[torch.Tensor, int, tuple[int, ...] | None, tuple[int, ...] | None]:
+        student_feat = self._get_student_feature(student_preds)
+        if student_feat is None:
+            raise RuntimeError(
+                f"DINO feature KD enabled but failed to resolve student feature source '{self.cfg.student_feature_source}'."
+            )
+        teacher_feat = self._get_teacher_feature(batch["img"])
+        if teacher_feat is None:
+            raise RuntimeError(
+                f"DINO feature KD enabled but failed to resolve teacher feature source '{self.cfg.teacher_feature_source}'."
+            )
+        self._last_student_shape = tuple(student_feat.shape)
+        self._last_teacher_shape = tuple(teacher_feat.shape)
+
+        image_h, image_w = int(batch["img"].shape[-2]), int(batch["img"].shape[-1])
+        boxes_by_image = self._collect_image_boxes_xyxy(
+            batch,
+            self.target_class_ids,
+            image_h=image_h,
+            image_w=image_w,
+            device=device,
+        )
+        if not boxes_by_image:
+            return torch.zeros((), device=device, dtype=dtype), 0, None, None
+
+        student_regions = self._region_pool_from_boxes(
+            student_feat,
+            boxes_by_image,
+            image_h=image_h,
+            image_w=image_w,
+            max_regions_per_image=self.cfg.max_regions_per_image,
+        )
+        teacher_regions = self._region_pool_from_boxes(
+            teacher_feat,
+            boxes_by_image,
+            image_h=image_h,
+            image_w=image_w,
+            max_regions_per_image=self.cfg.max_regions_per_image,
+        )
+        if student_regions is None or teacher_regions is None:
+            return torch.zeros((), device=device, dtype=dtype), 0, None, None
+
+        n = min(student_regions.shape[0], teacher_regions.shape[0])
+        if n <= 0:
+            return torch.zeros((), device=device, dtype=dtype), 0, None, None
+        student_regions = student_regions[:n]
+        teacher_regions = teacher_regions[:n].detach()
+
+        self.student_projector = self.student_projector.to(device=device)
+        self.teacher_projector = self.teacher_projector.to(device=device)
+        s_proj = self.student_projector(student_regions)
+        t_proj = self.teacher_projector(teacher_regions)
+        s_norm = F.normalize(s_proj, dim=-1)
+        t_norm = F.normalize(t_proj, dim=-1)
+
+        loss_type = str(self.cfg.loss_type).strip().lower()
+        if loss_type == "mse":
+            loss_raw = F.mse_loss(s_norm, t_norm)
+        else:
+            loss_raw = 1.0 - F.cosine_similarity(s_norm, t_norm, dim=-1).mean()
+        return loss_raw, int(n), tuple(student_regions.shape), tuple(teacher_regions.shape)
+
+    def __call__(
+        self,
+        preds: dict[str, torch.Tensor] | tuple[torch.Tensor, dict[str, torch.Tensor]],
+        batch: dict[str, torch.Tensor],
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        base_total_loss, base_items = self.base_criterion(preds, batch)
+        if not isinstance(base_items, torch.Tensor):
+            base_items = torch.as_tensor(base_items, device=base_total_loss.device, dtype=base_total_loss.dtype)
+        if base_items.ndim == 0:
+            base_items = base_items.unsqueeze(0)
+
+        dino_item = torch.zeros(1, device=base_total_loss.device, dtype=base_total_loss.dtype)
+        if not torch.is_grad_enabled() or not self.cfg.enabled or self.dino_teacher is None:
+            return base_total_loss, torch.cat((base_items, dino_item))
+
+        if self.cfg.frozen and self._any_nonzero_grad(self.dino_teacher):
+            raise RuntimeError("DINO teacher has non-zero gradients, but dino_frozen=True requires no teacher grad.")
+
+        self._batch_calls += 1
+        every_n = max(int(self.cfg.loss_every_n_batches), 1)
+        if self._batch_calls % every_n != 0:
+            return base_total_loss, torch.cat((base_items, dino_item))
+
+        student_preds = self._parse_preds(preds)
+        if not student_preds:
+            raise RuntimeError("DINO feature KD enabled but failed to parse student prediction dict.")
+
+        dino_raw, region_count, student_region_shape, teacher_region_shape = self._dino_feature_loss(
+            student_preds,
+            batch,
+            device=base_total_loss.device,
+            dtype=base_total_loss.dtype,
+        )
+        if region_count == 0:
+            dino_item[0] = 0.0
+            return base_total_loss, torch.cat((base_items, dino_item))
+
+        if not torch.isfinite(dino_raw).all():
+            raise RuntimeError(f"DINO region loss produced invalid value: {dino_raw}")
+
+        dino_total = float(self.cfg.loss_weight) * dino_raw * batch["img"].shape[0]
+        total_loss = base_total_loss + dino_total
+        dino_item[0] = dino_raw.detach()
+
+        if self._batch_calls <= max(int(self.cfg.debug_batches), 0):
+            det_for_log = base_total_loss.detach()
+            if det_for_log.numel() > 1:
+                det_for_log = det_for_log.mean()
+            LOGGER.info(
+                "DINO KD batch debug: "
+                f"loss_det={float(det_for_log):.6f}, "
+                f"loss_dino={float(dino_raw.detach()):.6f}, "
+                f"dino_loss_weight={float(self.cfg.loss_weight):.4f}, "
+                f"num_dino_regions={region_count}, "
+                f"student_feature_shape={self._last_student_shape}, "
+                f"dino_feature_shape={self._last_teacher_shape}, "
+                f"student_region_feature_shape={student_region_shape}, "
+                f"dino_region_feature_shape={teacher_region_shape}, "
+                f"dino_teacher_has_grad={self._any_nonzero_grad(self.dino_teacher)}"
+            )
+
+        return total_loss, torch.cat((base_items, dino_item))
+
+    def update(self) -> None:
         if hasattr(self.base_criterion, "update"):
             self.base_criterion.update()

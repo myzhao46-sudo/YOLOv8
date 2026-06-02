@@ -1,0 +1,78 @@
+# Minimal debug experiment for YOLOE + DINOv3 region feature KD.
+
+task: detect
+mode: train
+
+# Base setup (A0 baseline by default)
+model: ultralytics/ultralytics/best.pt
+student_arch: yoloe
+data: ultralytics/tmp_data/ship_oiltank_joint_abs.yaml
+epochs: 1
+batch: 2
+imgsz: 640
+workers: 0
+device: 0
+amp: False
+project: ultralytics/logcopy
+name: debug_dino_feature_kd_tank
+exist_ok: True
+val: True
+plots: True
+freeze: 22
+
+experiment_mode: replay_distill
+enable_distillation: True
+enable_replay: True
+enable_slicing: True
+
+# Keep existing stable teacher-student/replay settings.
+teacher_weights: ultralytics/logcopy/yoloe_tank_priority_teacher_best_205ep/weights/best.pt
+replay_data: ultralytics/datasets/SSDD/images/train
+slice_size: 512
+slice_overlap: 0.25
+min_box_keep_ratio: 0.5
+empty_tile_keep_prob: 0.3
+cache_slices: True
+
+distill_only_old_classes: True
+distill_old_class_ids: [0]
+distill_teacher_old_class_ids: [0]
+distill_feature_mode: old_only
+distill_feature_old_score_thr: 0.35
+distill_feature_weight: 0.15
+distill_cls_weight: 0.40
+distill_temperature: 2.0
+distill_student_old_class_name: ship
+distill_teacher_old_class_name: ship
+
+yoloe_prompt_mode: fixed_text
+yoloe_class_names: ["ship", "tank"]
+yoloe_allow_seg_init: True
+yoloe_zero_embedding_fallback: True
+
+# DINO feature KD switch group (default off, no behavior change).
+enable_dino_feature_kd: False
+dino_model_name: timm/convnext_tiny.dinov3_lvd1689m
+dino_model_backend: timm
+dino_frozen: True
+dino_no_grad: True
+dino_loss_weight: 0.05
+
+dino_target_class_names: ["tank", "oiltank"]
+dino_region_source: gt_box
+dino_region_only: True
+dino_max_regions_per_image: 16
+
+dino_student_feature_source: head_cv4
+dino_teacher_feature_source: last_feature_map
+dino_projection_dim: 256
+dino_loss_type: cosine
+
+dino_loss_every_n_batches: 1
+save_dino_teacher: False
+
+# A1 DINO minimal: override these from CLI
+# enable_dino_feature_kd=True freeze=22
+
+# A2 DINO absorb: override these from CLI after A1 passes
+# enable_dino_feature_kd=True freeze=21

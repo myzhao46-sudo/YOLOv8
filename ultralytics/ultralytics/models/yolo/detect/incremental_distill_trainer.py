@@ -15,7 +15,14 @@ import torch
 from ultralytics.data.utils import check_det_dataset
 from ultralytics.models import yolo
 from ultralytics.models.yolo.detect.train import DetectionTrainer
-from ultralytics.models.yolo.detect.distill import DistillationConfig, DistillationLossWrapper, load_teacher_model
+from ultralytics.models.yolo.detect.distill import (
+    DINOFeatureKDConfig,
+    DINOFeatureKDLossWrapper,
+    DistillationConfig,
+    DistillationLossWrapper,
+    build_dino_feature_teacher,
+    load_teacher_model,
+)
 from ultralytics.data.sliding_window import SliceConfig, prepare_sliced_image_paths
 from ultralytics.nn.tasks import YOLOEModel, yaml_model_load
 from ultralytics.utils import DEFAULT_CFG, LOGGER, RANK, YAML
@@ -67,6 +74,22 @@ class IncrementalDistillTrainer(DetectionTrainer):
         "yoloe_zero_embedding_fallback",
         "distill_student_old_class_name",
         "distill_teacher_old_class_name",
+        "enable_dino_feature_kd",
+        "dino_model_name",
+        "dino_model_backend",
+        "dino_frozen",
+        "dino_no_grad",
+        "dino_loss_weight",
+        "dino_target_class_names",
+        "dino_region_source",
+        "dino_region_only",
+        "dino_max_regions_per_image",
+        "dino_student_feature_source",
+        "dino_teacher_feature_source",
+        "dino_projection_dim",
+        "dino_loss_type",
+        "dino_loss_every_n_batches",
+        "save_dino_teacher",
     }
     _DISTILL_MODES = {"distill_only", "replay_distill"}
     _REPLAY_MODES = {"replay_only", "replay_distill"}
@@ -112,7 +135,10 @@ class IncrementalDistillTrainer(DetectionTrainer):
         )
 
         self.teacher_model = None
+        self.dino_teacher_model = None
         self._sliced_eval_yaml: dict[str, str] = {}
+        self._dino_debug_grad_steps = 0
+        self.enable_dino_feature_kd = self._get_bool("enable_dino_feature_kd", default=False)
 
         if RANK in {-1, 0}:
             LOGGER.info(
@@ -121,7 +147,8 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 f"student_arch={self.student_arch}, "
                 f"slicing={self.enable_slicing}, "
                 f"distill={self.enable_distillation}, "
-                f"replay={self.enable_replay}"
+                f"replay={self.enable_replay}, "
+                f"dino_feature_kd={self.enable_dino_feature_kd}"
             )
 
     def _get_arg(self, key: str, default: Any = None) -> Any:
@@ -796,8 +823,12 @@ class IncrementalDistillTrainer(DetectionTrainer):
 
     def get_validator(self):
         """Return DetectionValidator with extended loss columns."""
-        if self.enable_distillation:
+        if self.enable_distillation and self.enable_dino_feature_kd:
+            self.loss_names = ("box_loss", "cls_loss", "dfl_loss", "distill_feat_loss", "distill_cls_loss", "dino_loss")
+        elif self.enable_distillation:
             self.loss_names = ("box_loss", "cls_loss", "dfl_loss", "distill_feat_loss", "distill_cls_loss")
+        elif self.enable_dino_feature_kd:
+            self.loss_names = ("box_loss", "cls_loss", "dfl_loss", "dino_loss")
         else:
             self.loss_names = ("box_loss", "cls_loss", "dfl_loss")
         return yolo.detect.DetectionValidator(
@@ -816,11 +847,15 @@ class IncrementalDistillTrainer(DetectionTrainer):
 
     def _setup_train(self):
         super()._setup_train()
-        if not self.enable_distillation:
-            if RANK in {-1, 0}:
-                LOGGER.info("Distillation disabled: keep base detection criterion without distillation wrapper.")
-            return
-        self._attach_distillation_criterion()
+        if self.enable_distillation:
+            self._attach_distillation_criterion()
+        elif RANK in {-1, 0}:
+            LOGGER.info("Distillation disabled: keep base detection criterion without distillation wrapper.")
+
+        if self.enable_dino_feature_kd:
+            self._attach_dino_feature_kd_criterion()
+        elif RANK in {-1, 0}:
+            LOGGER.info("DINO feature KD disabled: keep base loss path unchanged.")
 
     def _ensure_loss_model_attrs(self, model: Any) -> None:
         """Ensure model has runtime attributes required by detection loss initialization."""
@@ -995,6 +1030,210 @@ class IncrementalDistillTrainer(DetectionTrainer):
                 f"student_old_ids={list(distill_cfg.student_old_class_indices)} ({student_old_names}), "
                 f"teacher_old_ids={list(distill_cfg.teacher_old_class_indices)} ({teacher_old_names})"
             )
+
+    @staticmethod
+    def _resolve_target_class_ids(names: list[str], targets: list[str]) -> list[int]:
+        if not names or not targets:
+            return []
+        lut = {str(n).strip().lower(): i for i, n in enumerate(names)}
+        resolved = []
+        for t in targets:
+            idx = lut.get(str(t).strip().lower(), None)
+            if idx is not None and idx not in resolved:
+                resolved.append(idx)
+        return resolved
+
+    @staticmethod
+    def _criterion_has_live_dino_teacher(criterion: Any) -> bool:
+        c = criterion
+        while c is not None:
+            if hasattr(c, "dino_teacher") and getattr(c, "dino_teacher") is not None:
+                return True
+            c = getattr(c, "base_criterion", None)
+        return False
+
+    @staticmethod
+    def _criterion_dino_wrapper(criterion: Any) -> Any:
+        c = criterion
+        while c is not None:
+            if c.__class__.__name__ == "DINOFeatureKDLossWrapper":
+                return c
+            c = getattr(c, "base_criterion", None)
+        return None
+
+    @staticmethod
+    def _any_nonzero_grad(model: Any) -> bool:
+        if model is None:
+            return False
+        for p in model.parameters():
+            if p.grad is not None and torch.count_nonzero(p.grad).item() > 0:
+                return True
+        return False
+
+    def _assert_teacher_not_in_optimizer(self, teacher_model: Any) -> None:
+        if teacher_model is None:
+            return
+        teacher_param_ids = {id(p) for p in teacher_model.parameters()}
+        for pg in self.optimizer.param_groups:
+            for p in pg.get("params", []):
+                if id(p) in teacher_param_ids:
+                    raise RuntimeError("DINO teacher parameter leaked into optimizer param_groups.")
+
+    def _build_dino_feature_teacher(self) -> Any:
+        dino_model_name = str(self._get_arg("dino_model_name", "timm/convnext_tiny.dinov3_lvd1689m"))
+        dino_backend = str(self._get_arg("dino_model_backend", "timm"))
+        teacher = build_dino_feature_teacher(dino_model_name, dino_backend, device=self.device)
+        teacher.eval()
+        for p in teacher.parameters():
+            p.requires_grad_(False)
+        return teacher
+
+    def _attach_dino_feature_kd_criterion(self) -> None:
+        student = unwrap_model(self.model)
+        self._ensure_loss_model_attrs(student)
+        if getattr(student, "criterion", None) is None:
+            student.criterion = student.init_criterion()
+
+        self.dino_teacher_model = self._build_dino_feature_teacher()
+        dino_params = sum(p.numel() for p in self.dino_teacher_model.parameters())
+        dino_trainable = sum(p.numel() for p in self.dino_teacher_model.parameters() if p.requires_grad)
+        if dino_trainable != 0:
+            raise RuntimeError("DINO teacher must be frozen. trainable_params should be 0.")
+
+        student_names = self._normalize_names(getattr(student, "names", None)) or self._normalize_names(self.data.get("names", {}))
+        target_names = self._parse_class_names(self._get_arg("dino_target_class_names", ["tank", "oiltank"]))
+        target_ids = self._resolve_target_class_ids(student_names, target_names)
+        if not target_ids:
+            raise RuntimeError(
+                f"DINO target classes not found in student class names. targets={target_names}, names={student_names}"
+            )
+
+        dino_cfg = DINOFeatureKDConfig(
+            enabled=True,
+            model_name=str(self._get_arg("dino_model_name", "timm/convnext_tiny.dinov3_lvd1689m")),
+            model_backend=str(self._get_arg("dino_model_backend", "timm")),
+            frozen=self._get_bool("dino_frozen", default=True),
+            no_grad=self._get_bool("dino_no_grad", default=True),
+            loss_weight=float(self._get_arg("dino_loss_weight", 0.05)),
+            target_class_names=tuple(target_names),
+            region_source=str(self._get_arg("dino_region_source", "gt_box")),
+            region_only=self._get_bool("dino_region_only", default=True),
+            max_regions_per_image=int(self._get_arg("dino_max_regions_per_image", 16)),
+            student_feature_source=str(self._get_arg("dino_student_feature_source", "head_cv4")),
+            teacher_feature_source=str(self._get_arg("dino_teacher_feature_source", "last_feature_map")),
+            projection_dim=int(self._get_arg("dino_projection_dim", 256)),
+            loss_type=str(self._get_arg("dino_loss_type", "cosine")),
+            loss_every_n_batches=int(self._get_arg("dino_loss_every_n_batches", 1)),
+            save_teacher=self._get_bool("save_dino_teacher", default=False),
+            debug_batches=5,
+        )
+        if dino_cfg.region_source != "gt_box":
+            raise ValueError(f"Only dino_region_source='gt_box' is supported in this minimal implementation.")
+        if not dino_cfg.region_only:
+            raise ValueError("This minimal implementation supports only dino_region_only=True.")
+
+        dino_wrapper = DINOFeatureKDLossWrapper(
+            base_criterion=student.criterion,
+            dino_teacher=self.dino_teacher_model,
+            cfg=dino_cfg,
+            student_model=student,
+            target_class_ids=tuple(target_ids),
+            class_names=tuple(student_names),
+        )
+        student.criterion = dino_wrapper
+
+        dino_proj_params = [p for p in list(dino_wrapper.student_projector.parameters()) + list(dino_wrapper.teacher_projector.parameters())]
+        if dino_proj_params:
+            self.optimizer.add_param_group(
+                {
+                    "params": dino_proj_params,
+                    "lr": float(self.args.lr0),
+                    "initial_lr": float(self.args.lr0),
+                    "weight_decay": float(self.args.weight_decay),
+                }
+            )
+        self._assert_teacher_not_in_optimizer(self.dino_teacher_model)
+
+        if self.ema and getattr(self.ema, "ema", None) is not None:
+            ema_model = unwrap_model(self.ema.ema)
+            self._ensure_loss_model_attrs(ema_model)
+            if getattr(ema_model, "criterion", None) is None:
+                ema_model.criterion = ema_model.init_criterion()
+            ema_model.criterion = DINOFeatureKDLossWrapper(
+                base_criterion=ema_model.criterion,
+                dino_teacher=self.dino_teacher_model,
+                cfg=dino_cfg,
+                student_model=None,
+                target_class_ids=tuple(target_ids),
+                class_names=tuple(student_names),
+            )
+
+        if RANK in {-1, 0}:
+            dino_dtype = next(self.dino_teacher_model.parameters()).dtype
+            dino_device = next(self.dino_teacher_model.parameters()).device
+            LOGGER.info(
+                "DINO feature KD setup: "
+                f"enable_dino_feature_kd=True, "
+                f"dino_model_name={dino_cfg.model_name}, "
+                f"dino_params={dino_params:,}, "
+                f"dino_trainable_params={dino_trainable:,}, "
+                f"dino_device={dino_device}, "
+                f"dino_dtype={dino_dtype}, "
+                f"student_feature_source={dino_cfg.student_feature_source}, "
+                f"dino_feature_source={dino_cfg.teacher_feature_source}, "
+                f"dino_projection_dim={dino_cfg.projection_dim}, "
+                f"dino_loss_weight={dino_cfg.loss_weight}, "
+                f"dino_target_classes={list(dino_cfg.target_class_names)}, "
+                f"max_regions_per_image={dino_cfg.max_regions_per_image}"
+            )
+
+    def optimizer_step(self):
+        if self.enable_dino_feature_kd and self._dino_debug_grad_steps < 5:
+            layer22_grad_norm = 0.0
+            student = unwrap_model(self.model)
+            layers = self._layers_from_model(student)
+            if len(layers) > 22:
+                norm_sq = 0.0
+                for p in layers[22].parameters():
+                    if p.grad is not None:
+                        norm_sq += float((p.grad.detach().float().norm(2) ** 2).item())
+                layer22_grad_norm = norm_sq ** 0.5
+
+            if self._any_nonzero_grad(self.dino_teacher_model):
+                raise RuntimeError("DINO teacher has gradients; this violates dino_frozen/dino_no_grad constraints.")
+
+            freeze_n = int(self._get_arg("freeze", 0))
+            if freeze_n >= 22 and len(layers) >= 22:
+                for li in range(22):
+                    for p in layers[li].parameters():
+                        if p.grad is not None and torch.count_nonzero(p.grad).item() > 0:
+                            raise RuntimeError(
+                                f"freeze={freeze_n} expected layer 0-21 to have zero gradients, but found non-zero grad at layer {li}."
+                            )
+            if RANK in {-1, 0}:
+                LOGGER.info(
+                    "DINO grad debug: "
+                    f"dino_teacher_has_grad={self._any_nonzero_grad(self.dino_teacher_model)}, "
+                    f"student_layer22_grad_norm={layer22_grad_norm:.6f}"
+                )
+            self._dino_debug_grad_steps += 1
+
+        super().optimizer_step()
+
+    def save_model(self):
+        if self.enable_dino_feature_kd and self.ema and getattr(self.ema, "ema", None) is not None:
+            ckpt_probe_model = deepcopy(unwrap_model(self.ema.ema))
+            has_dino_teacher = self._criterion_has_live_dino_teacher(getattr(ckpt_probe_model, "criterion", None))
+            model_params = sum(p.numel() for p in ckpt_probe_model.parameters())
+            if has_dino_teacher:
+                raise RuntimeError("Checkpoint model unexpectedly contains dino_teacher.")
+            if RANK in {-1, 0}:
+                LOGGER.info(
+                    "Checkpoint DINO audit: "
+                    f"checkpoint_includes_dino_teacher={has_dino_teacher}, "
+                    f"checkpoint_model_params={model_params:,} ({model_params / 1e6:.2f}M)"
+                )
+        super().save_model()
 
     def validate(self):
         metrics, fitness = super().validate()
