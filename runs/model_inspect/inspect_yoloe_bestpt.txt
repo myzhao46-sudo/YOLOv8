@@ -1,0 +1,97 @@
+YOLOE best.pt inspection summary
+====================================================================================================
+time: 2026-06-13 21:07:29
+checkpoint: C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/best.pt
+repo root: C:/Users/DOCTOR/Documents/GitHub/YOLOv8
+
+ultralytics imported from: C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\ultralytics\__init__.py
+YOLO class: <class 'ultralytics.models.yolo.model.YOLO'>
+
+wrapper type: ultralytics.models.yolo.model.YOLO
+inner model type: ultralytics.nn.tasks.YOLOESegModel
+task before: {'yolo.task': 'segment', 'inner.task': 'segment', 'inner.args.task': 'segment'}
+task after: {'yolo.task': 'segment', 'inner.task': 'segment', 'inner.args.task': 'segment'}
+
+names before: {'inner.names': {0: 'ship', 1: 'harbor', 2: 'tank'}, 'wrapper.names': {0: 'ship', 1: 'harbor', 2: 'tank'}}
+set_classes global4 ok: False
+names after: {'inner.names': {0: 'ship', 1: 'harbor', 2: 'tank'}, 'wrapper.names': {0: 'ship', 1: 'harbor', 2: 'tank'}}
+
+last layer type: ultralytics.nn.modules.head.YOLOESegment
+last layer class: YOLOESegment
+is YOLOESegModel guess: True
+is YOLOESegment head guess: True
+
+total params: 11,791,257 (11.791 M)
+trainable params: 0 (0.000 M)
+
+has set_classes: {'wrapper': True, 'inner_model': True}
+has get_text_pe: {'wrapper': True, 'inner_model': True}
+
+set_classes attempts:
+[
+  {
+    "target": "YOLO wrapper",
+    "has_set_classes": true,
+    "signature": "(names, embeddings)",
+    "ok": false,
+    "error": "TypeError(\"YOLOEModel.set_classes() missing 1 required positional argument: 'embeddings'\")",
+    "traceback": "Traceback (most recent call last):\n  File \"c:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\tools\\model\\inspect_yoloe_bestpt.py\", line 451, in try_call_set_classes\n    ret = fn(class_names)\nTypeError: YOLOEModel.set_classes() missing 1 required positional argument: 'embeddings'\n"
+  },
+  {
+    "target": "inner model",
+    "has_set_classes": true,
+    "signature": "(names, embeddings)",
+    "ok": false,
+    "error": "TypeError(\"YOLOEModel.set_classes() missing 1 required positional argument: 'embeddings'\")",
+    "traceback": "Traceback (most recent call last):\n  File \"c:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\tools\\model\\inspect_yoloe_bestpt.py\", line 451, in try_call_set_classes\n    ret = fn(class_names)\nTypeError: YOLOEModel.set_classes() missing 1 required positional argument: 'embeddings'\n"
+  }
+]
+
+get_text_pe attempts:
+[
+  {
+    "target": "YOLO wrapper",
+    "has_get_text_pe": true,
+    "signature": "(text, batch=80, cache_clip_model=False, without_reprta=False)",
+    "mode": "with_class_names",
+    "ok": true,
+    "return_type": "torch.Tensor",
+    "summary": {
+      "type": "Tensor",
+      "shape": [
+        1,
+        4,
+        512
+      ],
+      "dtype": "torch.float32",
+      "device": "cpu"
+    }
+  }
+]
+
+Layer summary:
+idx | type                           | params(M) | from               | extra
+------------------------------------------------------------------------------------------------------------------------
+  0 | ultralytics.nn.modules.conv.Conv |     0.001 | -1                 | 
+  1 | ultralytics.nn.modules.conv.Conv |     0.019 | -1                 | 
+  2 | ultralytics.nn.modules.block.C2f |     0.029 | -1                 | 
+  3 | ultralytics.nn.modules.conv.Conv |     0.074 | -1                 | 
+  4 | ultralytics.nn.modules.block.C2f |     0.198 | -1                 | 
+  5 | ultralytics.nn.modules.conv.Conv |     0.295 | -1                 | 
+  6 | ultralytics.nn.modules.block.C2f |     0.788 | -1                 | 
+  7 | ultralytics.nn.modules.conv.Conv |     1.181 | -1                 | 
+  8 | ultralytics.nn.modules.block.C2f |     1.838 | -1                 | 
+  9 | ultralytics.nn.modules.block.SPPF |     0.657 | -1                 | 
+ 10 | torch.nn.modules.upsampling.Upsample |     0.000 | -1                 | 
+ 11 | ultralytics.nn.modules.conv.Concat |     0.000 | [-1, 6]            | 
+ 12 | ultralytics.nn.modules.block.C2f |     0.591 | -1                 | 
+ 13 | torch.nn.modules.upsampling.Upsample |     0.000 | -1                 | 
+ 14 | ultralytics.nn.modules.conv.Concat |     0.000 | [-1, 4]            | 
+ 15 | ultralytics.nn.modules.block.C2f |     0.148 | -1                 | 
+ 16 | ultralytics.nn.modules.conv.Conv |     0.148 | 15                 | 
+ 17 | ultralytics.nn.modules.conv.Concat |     0.000 | [-1, 12]           | 
+ 18 | ultralytics.nn.modules.block.C2f |     0.493 | -1                 | 
+ 19 | ultralytics.nn.modules.conv.Conv |     0.590 | -1                 | 
+ 20 | ultralytics.nn.modules.conv.Concat |     0.000 | [-1, 9]            | 
+ 21 | ultralytics.nn.modules.block.C2f |     1.969 | -1                 | 
+ 22 | ultralytics.nn.modules.head.YOLOESegment |     2.772 | [15, 18, 21]       | stride=[8.0, 16.0, 32.0], nc=3, nl=3, reg_max=16, no=67, nm=32, npr=128

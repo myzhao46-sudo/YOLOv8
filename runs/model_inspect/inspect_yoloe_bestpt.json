@@ -1,0 +1,763 @@
+{
+  "time": "2026-06-13 21:07:29",
+  "repo_root": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8",
+  "checkpoint_path": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/best.pt",
+  "class_names_for_set_classes": [
+    "ship",
+    "harbor",
+    "tank",
+    "bridge"
+  ],
+  "ultralytics_imported_from": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\ultralytics\\__init__.py",
+  "yolo_class": "<class 'ultralytics.models.yolo.model.YOLO'>",
+  "raw_checkpoint": {
+    "ckpt_type": "builtins.dict",
+    "top_level_keys": [
+      "date",
+      "version",
+      "license",
+      "docs",
+      "epoch",
+      "best_fitness",
+      "model",
+      "ema",
+      "updates",
+      "optimizer",
+      "train_args",
+      "train_metrics",
+      "train_results"
+    ],
+    "model_type": "ultralytics.nn.tasks.YOLOESegModel",
+    "model_names": {
+      "0": "ship",
+      "1": "harbor",
+      "2": "tank"
+    },
+    "model_args": "{'task': 'segment', 'mode': 'train', 'model': 'ckpt_yolov8/from_distilled/direct_distillationv3_from_13k_lvd/distilled_weights_fixed_final.pt', 'data': '/HOME/paratera_xy/pxy1118/HDD_POOL/MyCode/yoloe-main/datasets_yaml/mix3_modals_ship315_real_3cls.yaml', 'epochs': 200, 'time': None, 'patience': 100, 'batch': 128, 'imgsz': 640, 'save': True, 'save_period': -1, 'cache': False, 'device': '0', 'workers': 8, 'project': None, 'name': 'yoloe_distilled_lvd_ship315_3cls', 'exist_ok': False, 'pretrained': True, 'optimizer': 'AdamW', 'verbose': True, 'seed': 0, 'deterministic': True, 'single_cls': False, 'rect': False, 'cos_lr': False, 'close_mosaic': 10, 'resume': False, 'amp': True, 'fraction': 1.0, 'profile': False, 'freeze': None, 'multi_scale': False, 'overlap_mask': True, 'mask_ratio': 4, 'dropout': 0.0, 'val': True, 'split': 'val', 'save_json': False, 'save_hybrid': False, 'conf': None, 'iou': 0.7, 'max_det': 300, 'half': False, 'dnn': False, 'plots': True, 'source': None, 'vid_stride': 1, 'stream_buffer': False, 'visualize': False, 'augment': False, 'agnostic_nms': False, 'classes': None, 'retina_masks': False, 'embed': None, 'show': False, 'save_frames': False, 'save_txt': False, '",
+    "model_num_layers": 23,
+    "model_last_layer_type": "ultralytics.nn.modules.head.YOLOESegment",
+    "model_last_layer_class": "YOLOESegment"
+  },
+  "wrapper_type": "ultralytics.models.yolo.model.YOLO",
+  "inner_model_type": "ultralytics.nn.tasks.YOLOESegModel",
+  "task_before": {
+    "yolo.task": "segment",
+    "inner.task": "segment",
+    "inner.args.task": "segment"
+  },
+  "names_before": {
+    "inner.names": {
+      "0": "ship",
+      "1": "harbor",
+      "2": "tank"
+    },
+    "wrapper.names": {
+      "0": "ship",
+      "1": "harbor",
+      "2": "tank"
+    }
+  },
+  "params_total": 11791257,
+  "params_trainable": 0,
+  "params_total_M": 11.791257,
+  "params_trainable_M": 0.0,
+  "num_layers": 23,
+  "last_layer_type": "ultralytics.nn.modules.head.YOLOESegment",
+  "last_layer_class_name": "YOLOESegment",
+  "has_set_classes": {
+    "wrapper": true,
+    "inner_model": true
+  },
+  "has_get_text_pe": {
+    "wrapper": true,
+    "inner_model": true
+  },
+  "prompt_attrs_before": {
+    "wrapper": [
+      {
+        "attr": "_non_persistent_buffers_set",
+        "python_type": "set",
+        "type": "builtins.set",
+        "repr": "set()"
+      },
+      {
+        "attr": "_wrapped_call_impl",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(*args, **kwargs)"
+      },
+      {
+        "attr": "call_super_init",
+        "python_type": "bool",
+        "type": "builtins.bool",
+        "repr": "False"
+      },
+      {
+        "attr": "embed",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(source: 'str | Path | int | list | tuple | np.ndarray | torch.Tensor' = None, stream: 'bool' = False, **kwargs: 'Any') -> 'list'"
+      },
+      {
+        "attr": "type",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(dst_type: Union[torch.dtype, str]) -> ~T"
+      }
+    ],
+    "inner_model": [
+      {
+        "attr": "_clip_augmented",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(y)"
+      },
+      {
+        "attr": "_non_persistent_buffers_set",
+        "python_type": "set",
+        "type": "builtins.set",
+        "repr": "set()"
+      },
+      {
+        "attr": "_wrapped_call_impl",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(*args, **kwargs)"
+      },
+      {
+        "attr": "call_super_init",
+        "python_type": "bool",
+        "type": "builtins.bool",
+        "repr": "False"
+      },
+      {
+        "attr": "clip_model",
+        "python_type": "NoneType",
+        "type": "None",
+        "repr": "None"
+      },
+      {
+        "attr": "get_cls_pe",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(tpe, vpe)"
+      },
+      {
+        "attr": "get_text_pe",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(text, batch=80, cache_clip_model=False, without_reprta=False)"
+      },
+      {
+        "attr": "get_visual_pe",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(img, visual)"
+      },
+      {
+        "attr": "type",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(dst_type: Union[torch.dtype, str]) -> ~T"
+      }
+    ],
+    "last_layer": [
+      {
+        "attr": "_non_persistent_buffers_set",
+        "python_type": "set",
+        "type": "builtins.set",
+        "repr": "set()"
+      },
+      {
+        "attr": "_wrapped_call_impl",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(*args, **kwargs)"
+      },
+      {
+        "attr": "call_super_init",
+        "python_type": "bool",
+        "type": "builtins.bool",
+        "repr": "False"
+      },
+      {
+        "attr": "embed",
+        "python_type": "int",
+        "type": "builtins.int",
+        "repr": "512"
+      },
+      {
+        "attr": "get_tpe",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(tpe: 'torch.Tensor | None') -> 'torch.Tensor | None'"
+      },
+      {
+        "attr": "get_vpe",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(x: 'list[torch.Tensor]', vpe: 'torch.Tensor') -> 'torch.Tensor'"
+      },
+      {
+        "attr": "reprta",
+        "python_type": "Identity",
+        "callable": true,
+        "signature": "(*args, **kwargs)"
+      },
+      {
+        "attr": "shape",
+        "python_type": "Size",
+        "type": "Size",
+        "len": 4,
+        "shape": [
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      {
+        "attr": "shape",
+        "python_type": "Size",
+        "type": "Size",
+        "len": 4,
+        "shape": [
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      {
+        "attr": "type",
+        "python_type": "str",
+        "type": "builtins.str",
+        "repr": "'ultralytics.nn.modules.head.YOLOESegment'"
+      },
+      {
+        "attr": "type",
+        "python_type": "str",
+        "type": "builtins.str",
+        "repr": "'ultralytics.nn.modules.head.YOLOESegment'"
+      }
+    ]
+  },
+  "state_dict_prompt_keys": [],
+  "set_classes_ok": false,
+  "set_classes_attempts": [
+    {
+      "target": "YOLO wrapper",
+      "has_set_classes": true,
+      "signature": "(names, embeddings)",
+      "ok": false,
+      "error": "TypeError(\"YOLOEModel.set_classes() missing 1 required positional argument: 'embeddings'\")",
+      "traceback": "Traceback (most recent call last):\n  File \"c:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\tools\\model\\inspect_yoloe_bestpt.py\", line 451, in try_call_set_classes\n    ret = fn(class_names)\nTypeError: YOLOEModel.set_classes() missing 1 required positional argument: 'embeddings'\n"
+    },
+    {
+      "target": "inner model",
+      "has_set_classes": true,
+      "signature": "(names, embeddings)",
+      "ok": false,
+      "error": "TypeError(\"YOLOEModel.set_classes() missing 1 required positional argument: 'embeddings'\")",
+      "traceback": "Traceback (most recent call last):\n  File \"c:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\tools\\model\\inspect_yoloe_bestpt.py\", line 451, in try_call_set_classes\n    ret = fn(class_names)\nTypeError: YOLOEModel.set_classes() missing 1 required positional argument: 'embeddings'\n"
+    }
+  ],
+  "task_after": {
+    "yolo.task": "segment",
+    "inner.task": "segment",
+    "inner.args.task": "segment"
+  },
+  "names_after": {
+    "inner.names": {
+      "0": "ship",
+      "1": "harbor",
+      "2": "tank"
+    },
+    "wrapper.names": {
+      "0": "ship",
+      "1": "harbor",
+      "2": "tank"
+    }
+  },
+  "get_text_pe_attempts": [
+    {
+      "target": "YOLO wrapper",
+      "has_get_text_pe": true,
+      "signature": "(text, batch=80, cache_clip_model=False, without_reprta=False)",
+      "mode": "with_class_names",
+      "ok": true,
+      "return_type": "torch.Tensor",
+      "summary": {
+        "type": "Tensor",
+        "shape": [
+          1,
+          4,
+          512
+        ],
+        "dtype": "torch.float32",
+        "device": "cpu"
+      }
+    }
+  ],
+  "prompt_attrs_after": {
+    "wrapper": [
+      {
+        "attr": "_non_persistent_buffers_set",
+        "python_type": "set",
+        "type": "builtins.set",
+        "repr": "set()"
+      },
+      {
+        "attr": "_wrapped_call_impl",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(*args, **kwargs)"
+      },
+      {
+        "attr": "call_super_init",
+        "python_type": "bool",
+        "type": "builtins.bool",
+        "repr": "False"
+      },
+      {
+        "attr": "embed",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(source: 'str | Path | int | list | tuple | np.ndarray | torch.Tensor' = None, stream: 'bool' = False, **kwargs: 'Any') -> 'list'"
+      },
+      {
+        "attr": "type",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(dst_type: Union[torch.dtype, str]) -> ~T"
+      }
+    ],
+    "inner_model": [
+      {
+        "attr": "_clip_augmented",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(y)"
+      },
+      {
+        "attr": "_non_persistent_buffers_set",
+        "python_type": "set",
+        "type": "builtins.set",
+        "repr": "set()"
+      },
+      {
+        "attr": "_wrapped_call_impl",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(*args, **kwargs)"
+      },
+      {
+        "attr": "call_super_init",
+        "python_type": "bool",
+        "type": "builtins.bool",
+        "repr": "False"
+      },
+      {
+        "attr": "clip_model",
+        "python_type": "NoneType",
+        "type": "None",
+        "repr": "None"
+      },
+      {
+        "attr": "get_cls_pe",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(tpe, vpe)"
+      },
+      {
+        "attr": "get_text_pe",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(text, batch=80, cache_clip_model=False, without_reprta=False)"
+      },
+      {
+        "attr": "get_visual_pe",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(img, visual)"
+      },
+      {
+        "attr": "type",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(dst_type: Union[torch.dtype, str]) -> ~T"
+      }
+    ],
+    "last_layer": [
+      {
+        "attr": "_non_persistent_buffers_set",
+        "python_type": "set",
+        "type": "builtins.set",
+        "repr": "set()"
+      },
+      {
+        "attr": "_wrapped_call_impl",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(*args, **kwargs)"
+      },
+      {
+        "attr": "call_super_init",
+        "python_type": "bool",
+        "type": "builtins.bool",
+        "repr": "False"
+      },
+      {
+        "attr": "embed",
+        "python_type": "int",
+        "type": "builtins.int",
+        "repr": "512"
+      },
+      {
+        "attr": "get_tpe",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(tpe: 'torch.Tensor | None') -> 'torch.Tensor | None'"
+      },
+      {
+        "attr": "get_vpe",
+        "python_type": "method",
+        "callable": true,
+        "signature": "(x: 'list[torch.Tensor]', vpe: 'torch.Tensor') -> 'torch.Tensor'"
+      },
+      {
+        "attr": "reprta",
+        "python_type": "Identity",
+        "callable": true,
+        "signature": "(*args, **kwargs)"
+      },
+      {
+        "attr": "shape",
+        "python_type": "Size",
+        "type": "Size",
+        "len": 4,
+        "shape": [
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      {
+        "attr": "shape",
+        "python_type": "Size",
+        "type": "Size",
+        "len": 4,
+        "shape": [
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      {
+        "attr": "type",
+        "python_type": "str",
+        "type": "builtins.str",
+        "repr": "'ultralytics.nn.modules.head.YOLOESegment'"
+      },
+      {
+        "attr": "type",
+        "python_type": "str",
+        "type": "builtins.str",
+        "repr": "'ultralytics.nn.modules.head.YOLOESegment'"
+      }
+    ]
+  },
+  "layers": [
+    {
+      "idx": 0,
+      "type": "ultralytics.nn.modules.conv.Conv",
+      "module": "ultralytics.nn.modules.conv.Conv",
+      "params": 928,
+      "params_M": 0.000928,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "0",
+      "f": "-1",
+      "np": "928"
+    },
+    {
+      "idx": 1,
+      "type": "ultralytics.nn.modules.conv.Conv",
+      "module": "ultralytics.nn.modules.conv.Conv",
+      "params": 18560,
+      "params_M": 0.01856,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "1",
+      "f": "-1",
+      "np": "18560"
+    },
+    {
+      "idx": 2,
+      "type": "ultralytics.nn.modules.block.C2f",
+      "module": "ultralytics.nn.modules.block.C2f",
+      "params": 29056,
+      "params_M": 0.029056,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "2",
+      "f": "-1",
+      "np": "29056"
+    },
+    {
+      "idx": 3,
+      "type": "ultralytics.nn.modules.conv.Conv",
+      "module": "ultralytics.nn.modules.conv.Conv",
+      "params": 73984,
+      "params_M": 0.073984,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "3",
+      "f": "-1",
+      "np": "73984"
+    },
+    {
+      "idx": 4,
+      "type": "ultralytics.nn.modules.block.C2f",
+      "module": "ultralytics.nn.modules.block.C2f",
+      "params": 197632,
+      "params_M": 0.197632,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "4",
+      "f": "-1",
+      "np": "197632"
+    },
+    {
+      "idx": 5,
+      "type": "ultralytics.nn.modules.conv.Conv",
+      "module": "ultralytics.nn.modules.conv.Conv",
+      "params": 295424,
+      "params_M": 0.295424,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "5",
+      "f": "-1",
+      "np": "295424"
+    },
+    {
+      "idx": 6,
+      "type": "ultralytics.nn.modules.block.C2f",
+      "module": "ultralytics.nn.modules.block.C2f",
+      "params": 788480,
+      "params_M": 0.78848,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "6",
+      "f": "-1",
+      "np": "788480"
+    },
+    {
+      "idx": 7,
+      "type": "ultralytics.nn.modules.conv.Conv",
+      "module": "ultralytics.nn.modules.conv.Conv",
+      "params": 1180672,
+      "params_M": 1.180672,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "7",
+      "f": "-1",
+      "np": "1180672"
+    },
+    {
+      "idx": 8,
+      "type": "ultralytics.nn.modules.block.C2f",
+      "module": "ultralytics.nn.modules.block.C2f",
+      "params": 1838080,
+      "params_M": 1.83808,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "8",
+      "f": "-1",
+      "np": "1838080"
+    },
+    {
+      "idx": 9,
+      "type": "ultralytics.nn.modules.block.SPPF",
+      "module": "ultralytics.nn.modules.block.SPPF",
+      "params": 656896,
+      "params_M": 0.656896,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "9",
+      "f": "-1",
+      "np": "656896"
+    },
+    {
+      "idx": 10,
+      "type": "torch.nn.modules.upsampling.Upsample",
+      "module": "torch.nn.modules.upsampling.Upsample",
+      "params": 0,
+      "params_M": 0.0,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "10",
+      "f": "-1",
+      "np": "0"
+    },
+    {
+      "idx": 11,
+      "type": "ultralytics.nn.modules.conv.Concat",
+      "module": "ultralytics.nn.modules.conv.Concat",
+      "params": 0,
+      "params_M": 0.0,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "11",
+      "f": "[-1, 6]",
+      "np": "0"
+    },
+    {
+      "idx": 12,
+      "type": "ultralytics.nn.modules.block.C2f",
+      "module": "ultralytics.nn.modules.block.C2f",
+      "params": 591360,
+      "params_M": 0.59136,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "12",
+      "f": "-1",
+      "np": "591360"
+    },
+    {
+      "idx": 13,
+      "type": "torch.nn.modules.upsampling.Upsample",
+      "module": "torch.nn.modules.upsampling.Upsample",
+      "params": 0,
+      "params_M": 0.0,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "13",
+      "f": "-1",
+      "np": "0"
+    },
+    {
+      "idx": 14,
+      "type": "ultralytics.nn.modules.conv.Concat",
+      "module": "ultralytics.nn.modules.conv.Concat",
+      "params": 0,
+      "params_M": 0.0,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "14",
+      "f": "[-1, 4]",
+      "np": "0"
+    },
+    {
+      "idx": 15,
+      "type": "ultralytics.nn.modules.block.C2f",
+      "module": "ultralytics.nn.modules.block.C2f",
+      "params": 148224,
+      "params_M": 0.148224,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "15",
+      "f": "-1",
+      "np": "148224"
+    },
+    {
+      "idx": 16,
+      "type": "ultralytics.nn.modules.conv.Conv",
+      "module": "ultralytics.nn.modules.conv.Conv",
+      "params": 147712,
+      "params_M": 0.147712,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "16",
+      "f": "15",
+      "np": "147712"
+    },
+    {
+      "idx": 17,
+      "type": "ultralytics.nn.modules.conv.Concat",
+      "module": "ultralytics.nn.modules.conv.Concat",
+      "params": 0,
+      "params_M": 0.0,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "17",
+      "f": "[-1, 12]",
+      "np": "0"
+    },
+    {
+      "idx": 18,
+      "type": "ultralytics.nn.modules.block.C2f",
+      "module": "ultralytics.nn.modules.block.C2f",
+      "params": 493056,
+      "params_M": 0.493056,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "18",
+      "f": "-1",
+      "np": "493056"
+    },
+    {
+      "idx": 19,
+      "type": "ultralytics.nn.modules.conv.Conv",
+      "module": "ultralytics.nn.modules.conv.Conv",
+      "params": 590336,
+      "params_M": 0.590336,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "19",
+      "f": "-1",
+      "np": "590336"
+    },
+    {
+      "idx": 20,
+      "type": "ultralytics.nn.modules.conv.Concat",
+      "module": "ultralytics.nn.modules.conv.Concat",
+      "params": 0,
+      "params_M": 0.0,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "20",
+      "f": "[-1, 9]",
+      "np": "0"
+    },
+    {
+      "idx": 21,
+      "type": "ultralytics.nn.modules.block.C2f",
+      "module": "ultralytics.nn.modules.block.C2f",
+      "params": 1969152,
+      "params_M": 1.969152,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "21",
+      "f": "-1",
+      "np": "1969152"
+    },
+    {
+      "idx": 22,
+      "type": "ultralytics.nn.modules.head.YOLOESegment",
+      "module": "ultralytics.nn.modules.head.YOLOESegment",
+      "params": 2771705,
+      "params_M": 2.771705,
+      "trainable": 0,
+      "trainable_M": 0.0,
+      "i": "22",
+      "f": "[15, 18, 21]",
+      "np": "6398294",
+      "stride": [
+        8.0,
+        16.0,
+        32.0
+      ],
+      "nc": "3",
+      "nl": "3",
+      "reg_max": "16",
+      "no": "67",
+      "nm": "32",
+      "npr": "128"
+    }
+  ],
+  "is_yoloe_seg_model_guess": true,
+  "is_yoloe_segment_head_guess": true
+}
