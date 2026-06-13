@@ -1,0 +1,19 @@
+train:
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/ship_small/images/train
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_small/DIOR_bridge_rgb30/images/train
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_small/MASR_bridge_sar30/images/train
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_small/MassMIND_bridge_infr30/images/train
+
+val:
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/ship_small/images/val
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_small/DIOR_bridge_rgb30/images/val
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_small/MASR_bridge_sar30/images/val
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_small/MassMIND_bridge_infr30/images/val
+
+nc: 4
+
+names:
+  0: ship
+  1: harbor
+  2: tank
+  3: bridge
