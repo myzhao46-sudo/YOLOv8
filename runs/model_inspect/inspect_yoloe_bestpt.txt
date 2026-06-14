@@ -1,26 +1,33 @@
 YOLOE best.pt inspection summary
 ====================================================================================================
-time: 2026-06-13 21:07:29
+time: 2026-06-13 22:01:07
 checkpoint: C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/best.pt
 repo root: C:/Users/DOCTOR/Documents/GitHub/YOLOv8
 
 ultralytics imported from: C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\ultralytics\__init__.py
 YOLO class: <class 'ultralytics.models.yolo.model.YOLO'>
 
+model class: ultralytics.nn.tasks.YOLOESegModel
 wrapper type: ultralytics.models.yolo.model.YOLO
 inner model type: ultralytics.nn.tasks.YOLOESegModel
 task before: {'yolo.task': 'segment', 'inner.task': 'segment', 'inner.args.task': 'segment'}
 task after: {'yolo.task': 'segment', 'inner.task': 'segment', 'inner.args.task': 'segment'}
 
-names before: {'inner.names': {0: 'ship', 1: 'harbor', 2: 'tank'}, 'wrapper.names': {0: 'ship', 1: 'harbor', 2: 'tank'}}
-set_classes global4 ok: False
-names after: {'inner.names': {0: 'ship', 1: 'harbor', 2: 'tank'}, 'wrapper.names': {0: 'ship', 1: 'harbor', 2: 'tank'}}
+names before: {0: 'ship', 1: 'harbor', 2: 'tank'}
+get_text_pe global4 ok: True
+global4 embedding shape: [1, 4, 512]
+set_classes global4 ok: True
+names after: {0: 'ship', 1: 'harbor', 2: 'tank', 3: 'bridge'}
 
+last layer: ultralytics.nn.modules.head.YOLOESegment
 last layer type: ultralytics.nn.modules.head.YOLOESegment
 last layer class: YOLOESegment
+last_layer.nc before: 3
+last_layer.nc after: 4
 is YOLOESegModel guess: True
 is YOLOESegment head guess: True
 
+params: 11,791,257 (11.791 M)
 total params: 11,791,257 (11.791 M)
 trainable params: 0 (0.000 M)
 
@@ -33,17 +40,15 @@ set_classes attempts:
     "target": "YOLO wrapper",
     "has_set_classes": true,
     "signature": "(names, embeddings)",
-    "ok": false,
-    "error": "TypeError(\"YOLOEModel.set_classes() missing 1 required positional argument: 'embeddings'\")",
-    "traceback": "Traceback (most recent call last):\n  File \"c:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\tools\\model\\inspect_yoloe_bestpt.py\", line 451, in try_call_set_classes\n    ret = fn(class_names)\nTypeError: YOLOEModel.set_classes() missing 1 required positional argument: 'embeddings'\n"
-  },
-  {
-    "target": "inner model",
-    "has_set_classes": true,
-    "signature": "(names, embeddings)",
-    "ok": false,
-    "error": "TypeError(\"YOLOEModel.set_classes() missing 1 required positional argument: 'embeddings'\")",
-    "traceback": "Traceback (most recent call last):\n  File \"c:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\tools\\model\\inspect_yoloe_bestpt.py\", line 451, in try_call_set_classes\n    ret = fn(class_names)\nTypeError: YOLOEModel.set_classes() missing 1 required positional argument: 'embeddings'\n"
+    "mode": "set_classes(names, embeddings)",
+    "embedding_source": "YOLO wrapper.get_text_pe(names)",
+    "embedding_shape": [
+      1,
+      4,
+      512
+    ],
+    "ok": true,
+    "return_type": "None"
   }
 ]
 
@@ -53,7 +58,7 @@ get_text_pe attempts:
     "target": "YOLO wrapper",
     "has_get_text_pe": true,
     "signature": "(text, batch=80, cache_clip_model=False, without_reprta=False)",
-    "mode": "with_class_names",
+    "mode": "get_text_pe(names)",
     "ok": true,
     "return_type": "torch.Tensor",
     "summary": {
@@ -65,7 +70,12 @@ get_text_pe attempts:
       ],
       "dtype": "torch.float32",
       "device": "cpu"
-    }
+    },
+    "embedding_shape": [
+      1,
+      4,
+      512
+    ]
   }
 ]
 
@@ -94,4 +104,4 @@ idx | type                           | params(M) | from               | extra
  19 | ultralytics.nn.modules.conv.Conv |     0.590 | -1                 | 
  20 | ultralytics.nn.modules.conv.Concat |     0.000 | [-1, 9]            | 
  21 | ultralytics.nn.modules.block.C2f |     1.969 | -1                 | 
- 22 | ultralytics.nn.modules.head.YOLOESegment |     2.772 | [15, 18, 21]       | stride=[8.0, 16.0, 32.0], nc=3, nl=3, reg_max=16, no=67, nm=32, npr=128
+ 22 | ultralytics.nn.modules.head.YOLOESegment |     2.772 | [15, 18, 21]       | stride=[8.0, 16.0, 32.0], nc=4, nl=3, reg_max=16, no=67, nm=32, npr=128

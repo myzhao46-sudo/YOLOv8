@@ -251,6 +251,66 @@ def summarize_value(x):
     }
 
 
+def plain_attr_value(x):
+    """
+    Convert common layer attributes into JSON-safe values while preserving useful detail.
+    """
+    if x is None:
+        return None
+
+    if torch.is_tensor(x):
+        try:
+            if x.numel() <= 20:
+                return x.detach().cpu().tolist()
+            return summarize_value(x)
+        except Exception:
+            return summarize_value(x)
+
+    if isinstance(x, torch.nn.Parameter):
+        return summarize_value(x)
+
+    if isinstance(x, (str, int, float, bool)):
+        return x
+
+    if isinstance(x, (list, tuple)):
+        out = []
+        for v in x:
+            if isinstance(v, (str, int, float, bool)) or v is None:
+                out.append(v)
+            elif torch.is_tensor(v) or isinstance(v, torch.nn.Parameter) or hasattr(v, "shape"):
+                out.append(summarize_value(v))
+            else:
+                out.append(str(v))
+        return out
+
+    if isinstance(x, dict):
+        return {str(k): plain_attr_value(v) for k, v in x.items()}
+
+    if hasattr(x, "shape"):
+        return summarize_value(x)
+
+    return str(x)
+
+
+def summarize_last_layer_state(last_layer):
+    """
+    Capture the head fields that matter for checking set_classes side effects.
+    """
+    if last_layer is None:
+        return None
+
+    state = {
+        "type": obj_type(last_layer),
+        "class_name": last_layer.__class__.__name__,
+    }
+
+    for attr in ["nc", "no", "nl", "reg_max", "embed"]:
+        state[attr] = plain_attr_value(safe_getattr(last_layer, attr, None))
+
+    state["prompt_like_attrs"] = find_attr_tensors(last_layer)
+    return state
+
+
 def find_attr_tensors(obj, keywords=("pe", "text", "txt", "prompt", "embed", "clip", "savpe", "reprta")):
     """
     Search direct attributes only, not recursive.
@@ -418,12 +478,89 @@ def find_state_dict_prompt_keys(inner_model):
 # YOLOE prompt / class names 检查
 # ======================================================================================
 
+def try_make_text_embeddings(yolo_obj, inner_model, class_names):
+    """
+    Build text embeddings for class_names using the exposed YOLOE APIs.
+    Returns:
+      embeddings, success_record, all_attempts
+    """
+    attempts = []
+
+    call_specs = [
+        ("YOLO wrapper", yolo_obj, "get_text_pe(names)", (class_names,), {}),
+        ("inner model", inner_model, "get_text_pe(names)", (class_names,), {}),
+        ("YOLO wrapper", yolo_obj, "get_text_pe(names, cache_clip_model=False)", (class_names,), {"cache_clip_model": False}),
+        ("inner model", inner_model, "get_text_pe(names, cache_clip_model=False)", (class_names,), {"cache_clip_model": False}),
+    ]
+
+    for label, obj, mode, args, kwargs in call_specs:
+        if obj is None:
+            attempts.append({
+                "target": label,
+                "has_get_text_pe": False,
+                "mode": mode,
+                "ok": False,
+                "error": "target object is None",
+            })
+            continue
+
+        fn = safe_getattr(obj, "get_text_pe", None)
+
+        if not callable(fn):
+            attempts.append({
+                "target": label,
+                "has_get_text_pe": False,
+                "mode": mode,
+                "ok": False,
+                "error": "get_text_pe not found",
+            })
+            continue
+
+        sig = safe_signature(fn)
+
+        try:
+            embeddings = fn(*args, **kwargs)
+            record = {
+                "target": label,
+                "has_get_text_pe": True,
+                "signature": sig,
+                "mode": mode,
+                "ok": True,
+                "return_type": obj_type(embeddings),
+                "summary": summarize_value(embeddings),
+                "embedding_source": f"{label}.{mode}",
+                "embedding_shape": shape_of(embeddings),
+            }
+            attempts.append(record)
+            return embeddings, record, attempts
+        except Exception as e:
+            attempts.append({
+                "target": label,
+                "has_get_text_pe": True,
+                "signature": sig,
+                "mode": mode,
+                "ok": False,
+                "error": repr(e),
+                "traceback": traceback.format_exc(),
+            })
+
+    return None, None, attempts
+
+
 def try_call_set_classes(yolo_obj, inner_model, class_names):
     """
-    Try set_classes on the Ultralytics wrapper first, then inner model.
+    Build text embeddings, then try set_classes on the wrapper first, then inner model.
     This only changes the in-memory model object and does not modify best.pt.
     """
     attempts = []
+    embeddings, embedding_record, embedding_attempts = try_make_text_embeddings(yolo_obj, inner_model, class_names)
+
+    embedding_source = None
+    embedding_shape = None
+
+    if embedding_record is not None:
+        embedding_source = embedding_record.get("embedding_source")
+        embedding_shape = embedding_record.get("embedding_shape")
 
     candidates = [
         ("YOLO wrapper", yolo_obj),
@@ -440,6 +577,10 @@ def try_call_set_classes(yolo_obj, inner_model, class_names):
             attempts.append({
                 "target": label,
                 "has_set_classes": False,
+                "signature": None,
+                "mode": None,
+                "embedding_source": embedding_source,
+                "embedding_shape": embedding_shape,
                 "ok": False,
                 "error": "set_classes not found",
             })
@@ -447,35 +588,55 @@ def try_call_set_classes(yolo_obj, inner_model, class_names):
 
         sig = safe_signature(fn)
 
-        try:
-            ret = fn(class_names)
-            attempts.append({
-                "target": label,
-                "has_set_classes": True,
-                "signature": sig,
-                "ok": True,
-                "return_type": obj_type(ret),
-            })
-            return True, attempts
-        except Exception as e:
-            attempts.append({
-                "target": label,
-                "has_set_classes": True,
-                "signature": sig,
-                "ok": False,
-                "error": repr(e),
-                "traceback": traceback.format_exc(limit=10),
-            })
+        call_modes = []
+        if embeddings is not None:
+            call_modes.append(("set_classes(names, embeddings)", (class_names, embeddings)))
+        call_modes.append(("set_classes(names)", (class_names,)))
 
-    return False, attempts
+        for mode, args in call_modes:
+            try:
+                ret = fn(*args)
+                attempts.append({
+                    "target": label,
+                    "has_set_classes": True,
+                    "signature": sig,
+                    "mode": mode,
+                    "embedding_source": embedding_source,
+                    "embedding_shape": embedding_shape,
+                    "ok": True,
+                    "return_type": obj_type(ret),
+                })
+                return True, attempts, {
+                    "ok": embedding_record is not None,
+                    "embedding_source": embedding_source,
+                    "embedding_shape": embedding_shape,
+                    "attempts": embedding_attempts,
+                }
+            except Exception as e:
+                attempts.append({
+                    "target": label,
+                    "has_set_classes": True,
+                    "signature": sig,
+                    "mode": mode,
+                    "embedding_source": embedding_source,
+                    "embedding_shape": embedding_shape,
+                    "ok": False,
+                    "error": repr(e),
+                    "traceback": traceback.format_exc(),
+                })
+
+    return False, attempts, {
+        "ok": embedding_record is not None,
+        "embedding_source": embedding_source,
+        "embedding_shape": embedding_shape,
+        "attempts": embedding_attempts,
+    }
 
 
 def try_get_text_pe(yolo_obj, inner_model, class_names):
     """
     Probe get_text_pe safely.
-    Different YOLOE versions may expose different signatures, so we try:
-    1. get_text_pe(class_names)
-    2. get_text_pe()
+    This is only a probe/print helper. set_classes builds its own embeddings.
     """
     attempts = []
 
@@ -502,13 +663,14 @@ def try_get_text_pe(yolo_obj, inner_model, class_names):
         sig = safe_signature(fn)
 
         call_modes = [
-            ("with_class_names", (class_names,)),
-            ("no_args", tuple()),
+            ("get_text_pe(names)", (class_names,), {}),
+            ("get_text_pe(names, cache_clip_model=False)", (class_names,), {"cache_clip_model": False}),
+            ("get_text_pe()", tuple(), {}),
         ]
 
-        for mode, args in call_modes:
+        for mode, args, kwargs in call_modes:
             try:
-                out = fn(*args)
+                out = fn(*args, **kwargs)
                 item = {
                     "target": label,
                     "has_get_text_pe": True,
@@ -517,6 +679,7 @@ def try_get_text_pe(yolo_obj, inner_model, class_names):
                     "ok": True,
                     "return_type": obj_type(out),
                     "summary": summarize_value(out),
+                    "embedding_shape": shape_of(out),
                 }
                 attempts.append(item)
                 return attempts
@@ -528,7 +691,7 @@ def try_get_text_pe(yolo_obj, inner_model, class_names):
                     "mode": mode,
                     "ok": False,
                     "error": repr(e),
-                    "traceback": traceback.format_exc(limit=6),
+                    "traceback": traceback.format_exc(),
                 })
 
     return attempts
@@ -539,6 +702,29 @@ def get_names_from_wrapper_or_inner(yolo_obj, inner_model):
         "inner.names": to_plain_names(safe_getattr(inner_model, "names", None)),
         "wrapper.names": to_plain_names(safe_getattr(yolo_obj, "names", None)),
     }
+
+
+def preferred_names(names_info):
+    if not isinstance(names_info, dict):
+        return names_info
+
+    for key in ["inner.names", "wrapper.names"]:
+        value = names_info.get(key)
+        if value is not None:
+            return value
+
+    return None
+
+
+def names_match_class_names(names_info, class_names):
+    wanted = {i: str(v) for i, v in enumerate(class_names)}
+
+    if isinstance(names_info, dict):
+        for value in names_info.values():
+            if value == wanted:
+                return True
+
+    return names_info == wanted
 
 
 def get_task_candidates(yolo_obj, inner_model):
@@ -630,20 +816,27 @@ def write_compact_txt(report, layer_rows, save_txt: Path):
     lines.append(f"ultralytics imported from: {report.get('ultralytics_imported_from')}")
     lines.append(f"YOLO class: {report.get('yolo_class')}")
     lines.append("")
+    lines.append(f"model class: {report.get('inner_model_type')}")
     lines.append(f"wrapper type: {report.get('wrapper_type')}")
     lines.append(f"inner model type: {report.get('inner_model_type')}")
     lines.append(f"task before: {report.get('task_before')}")
     lines.append(f"task after: {report.get('task_after')}")
     lines.append("")
-    lines.append(f"names before: {report.get('names_before')}")
+    lines.append(f"names before: {report.get('names_before_preferred')}")
+    lines.append(f"get_text_pe global4 ok: {report.get('get_text_pe_global4_ok')}")
+    lines.append(f"global4 embedding shape: {report.get('global4_embedding_shape')}")
     lines.append(f"set_classes global4 ok: {report.get('set_classes_ok')}")
-    lines.append(f"names after: {report.get('names_after')}")
+    lines.append(f"names after: {report.get('names_after_preferred')}")
     lines.append("")
+    lines.append(f"last layer: {report.get('last_layer_type')}")
     lines.append(f"last layer type: {report.get('last_layer_type')}")
     lines.append(f"last layer class: {report.get('last_layer_class_name')}")
+    lines.append(f"last_layer.nc before: {report.get('last_layer_nc_before')}")
+    lines.append(f"last_layer.nc after: {report.get('last_layer_nc_after')}")
     lines.append(f"is YOLOESegModel guess: {report.get('is_yoloe_seg_model_guess')}")
     lines.append(f"is YOLOESegment head guess: {report.get('is_yoloe_segment_head_guess')}")
     lines.append("")
+    lines.append(f"params: {report.get('params_total'):,} ({report.get('params_total_M'):.3f} M)")
     lines.append(f"total params: {report.get('params_total'):,} ({report.get('params_total_M'):.3f} M)")
     lines.append(f"trainable params: {report.get('params_trainable'):,} ({report.get('params_trainable_M'):.3f} M)")
     lines.append("")
@@ -773,6 +966,7 @@ def main():
 
     report["task_before"] = task_before
     report["names_before"] = names_before
+    report["names_before_preferred"] = preferred_names(names_before)
 
     log(f"task before:  {json.dumps(task_before, ensure_ascii=False)}")
     log(f"names before: {json.dumps(names_before, ensure_ascii=False)}")
@@ -793,9 +987,12 @@ def main():
     report["num_layers"] = len(layers)
     report["last_layer_type"] = obj_type(last_layer)
     report["last_layer_class_name"] = last_layer.__class__.__name__ if last_layer is not None else None
+    report["last_layer_state_before"] = summarize_last_layer_state(last_layer)
+    report["last_layer_nc_before"] = plain_attr_value(safe_getattr(last_layer, "nc", None))
 
     log(f"num layers:       {len(layers)}")
     log(f"last layer type:  {report['last_layer_type']}")
+    log(f"last_layer.nc before set_classes: {report['last_layer_nc_before']}")
 
     # ----------------------------------------------------------------------------------
     # YOLOE prompt capability
@@ -854,11 +1051,17 @@ def main():
     log("")
     log("[7] Try set_classes(global4)")
 
-    ok_set, set_attempts = try_call_set_classes(yolo, inner, class_names)
+    ok_set, set_attempts, set_embedding = try_call_set_classes(yolo, inner, class_names)
 
     report["set_classes_ok"] = ok_set
     report["set_classes_attempts"] = set_attempts
+    report["set_classes_embedding"] = set_embedding
+    report["get_text_pe_global4_ok"] = bool(set_embedding.get("ok")) if isinstance(set_embedding, dict) else False
+    report["global4_embedding_shape"] = set_embedding.get("embedding_shape") if isinstance(set_embedding, dict) else None
 
+    log("text embedding used by set_classes:")
+    log(json.dumps(set_embedding, ensure_ascii=False, indent=2))
+    log("set_classes attempts:")
     log(json.dumps(set_attempts, ensure_ascii=False, indent=2))
 
     # ----------------------------------------------------------------------------------
@@ -872,9 +1075,50 @@ def main():
 
     report["task_after"] = task_after
     report["names_after"] = names_after
+    report["names_after_preferred"] = preferred_names(names_after)
+    report["names_after_global4_ok"] = names_match_class_names(names_after, class_names)
 
     log(f"task after:  {json.dumps(task_after, ensure_ascii=False)}")
     log(f"names after: {json.dumps(names_after, ensure_ascii=False)}")
+
+    # ----------------------------------------------------------------------------------
+    # Global4 state verification after set_classes
+    # ----------------------------------------------------------------------------------
+    log("")
+    log("[8.1] Global4 state verification after set_classes")
+
+    layers_after_set_classes = get_layers(inner)
+    last_layer_after_set_classes = layers_after_set_classes[-1] if layers_after_set_classes else None
+    last_layer_state_after = summarize_last_layer_state(last_layer_after_set_classes)
+
+    report["last_layer_state_after_set_classes"] = last_layer_state_after
+    report["last_layer_nc_after"] = (
+        last_layer_state_after.get("nc") if isinstance(last_layer_state_after, dict) else None
+    )
+
+    global4_state = {
+        "names_after": names_after,
+        "names_after_preferred": preferred_names(names_after),
+        "names_after_global4_ok": report["names_after_global4_ok"],
+        "set_classes_global4_ok": ok_set,
+        "get_text_pe_global4_ok": report["get_text_pe_global4_ok"],
+        "global4_embedding_shape": report["global4_embedding_shape"],
+        "last_layer_nc_before": report["last_layer_nc_before"],
+        "last_layer_state_after": last_layer_state_after,
+    }
+    report["global4_state_after_set_classes"] = global4_state
+
+    log(json.dumps(global4_state, ensure_ascii=False, indent=2))
+
+    nc_after = report["last_layer_nc_after"]
+    if str(nc_after) == "4":
+        log("OK: last_layer.nc is 4 after set_classes.")
+    elif str(nc_after) == "3" and report["names_after_global4_ok"]:
+        log("WARNING: names updated to 4 classes, but last_layer.nc is still 3.")
+        log("This may mean set_classes only updates prompt/name state, not head nc attribute, or layer attrs are stale.")
+        log("Do not force detect adaptation here.")
+    else:
+        log(f"NOTE: last_layer.nc after set_classes is {nc_after}. See JSON for full state.")
 
     # ----------------------------------------------------------------------------------
     # get_text_pe
@@ -897,7 +1141,7 @@ def main():
     prompt_attrs_after = {
         "wrapper": find_attr_tensors(yolo),
         "inner_model": find_attr_tensors(inner),
-        "last_layer": find_attr_tensors(last_layer),
+        "last_layer": find_attr_tensors(last_layer_after_set_classes),
     }
 
     report["prompt_attrs_after"] = prompt_attrs_after
@@ -931,9 +1175,13 @@ def main():
     log(f"last layer is YOLOESegment?    {report['is_yoloe_segment_head_guess']}")
     log(f"task before:                   {report['task_before']}")
     log(f"task after:                    {report['task_after']}")
-    log(f"names before:                  {report['names_before']}")
+    log(f"names before:                  {report['names_before_preferred']}")
+    log(f"get_text_pe global4 ok?         {report['get_text_pe_global4_ok']}")
+    log(f"global4 embedding shape:        {report['global4_embedding_shape']}")
     log(f"set_classes global4 ok?         {report['set_classes_ok']}")
-    log(f"names after:                   {report['names_after']}")
+    log(f"names after:                   {report['names_after_preferred']}")
+    log(f"last_layer.nc before:          {report['last_layer_nc_before']}")
+    log(f"last_layer.nc after:           {report['last_layer_nc_after']}")
     log(f"total params:                  {report['params_total_M']:.3f} M")
     log("=" * 120)
 
