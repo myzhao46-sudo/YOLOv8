@@ -1,0 +1,17 @@
+train:
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/ship_extratest_no_overlap/images/extratest_rgb
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/ship_extratest_no_overlap/images/extratest_sar
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/ship_extratest_no_overlap/images/extratest_ir
+
+val:
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/ship_extratest_no_overlap/images/extratest_rgb
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/ship_extratest_no_overlap/images/extratest_sar
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/ship_extratest_no_overlap/images/extratest_ir
+
+nc: 4
+
+names:
+  0: ship
+  1: harbor
+  2: tank
+  3: bridge
