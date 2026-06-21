@@ -1,0 +1,30 @@
+path: C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets
+
+train:
+  - ship_extratest_no_overlap/images/extratest_rgb
+  - ship_extratest_no_overlap/images/extratest_sar
+  - ship_extratest_no_overlap/images/extratest_ir
+  - extracttest_bridge/images/extratest_rgb
+  - extracttest_bridge/images/extratest_sar
+  - extracttest_bridge/images/extratest_ir
+
+val:
+  - ship_extratest_no_overlap/images/extratest_rgb
+  - ship_extratest_no_overlap/images/extratest_sar
+  - ship_extratest_no_overlap/images/extratest_ir
+  - extracttest_bridge/images/extratest_rgb
+  - extracttest_bridge/images/extratest_sar
+  - extracttest_bridge/images/extratest_ir
+
+test:
+  - ship_extratest_no_overlap/images/extratest_rgb
+  - ship_extratest_no_overlap/images/extratest_sar
+  - ship_extratest_no_overlap/images/extratest_ir
+  - extracttest_bridge/images/extratest_rgb
+  - extracttest_bridge/images/extratest_sar
+  - extracttest_bridge/images/extratest_ir
+
+nc: 2
+names:
+  0: ship
+  1: bridge

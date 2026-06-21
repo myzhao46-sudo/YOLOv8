@@ -1,0 +1,11 @@
+train:
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/extracttest_bridge/images/extratest_rgb
+
+val:
+  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/extracttest_bridge/images/extratest_rgb
+
+nc: 2
+
+names:
+  0: ship
+  1: bridge
