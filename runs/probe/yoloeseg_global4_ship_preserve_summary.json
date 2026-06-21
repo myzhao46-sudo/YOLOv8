@@ -1,0 +1,1708 @@
+{
+  "time": "2026-06-21T21:10:07.972988",
+  "git_commit": "f1c5640cafd38b23f990376aba272d5599c71531",
+  "ultralytics_imported_from": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\ultralytics\\__init__.py",
+  "weights": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\best.pt",
+  "expanded_weights": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\runs\\probe\\yoloeseg_global4_expanded_init\\weights\\global4_expanded_bestpt.pt",
+  "settings": {
+    "weights": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\best.pt",
+    "expanded_weights": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\runs\\probe\\yoloeseg_global4_expanded_init\\weights\\global4_expanded_bestpt.pt",
+    "summary": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\runs\\probe\\yoloeseg_global4_ship_preserve_summary.json",
+    "imgsz": 640,
+    "batch": 4,
+    "device": "cuda:0",
+    "conf": 0.25,
+    "pred_iou": 0.7,
+    "match_iou": 0.5,
+    "max_det": 300
+  },
+  "native_val_called": false,
+  "training_called": false,
+  "masks_ignored": true,
+  "source_sha256_before": "50f306b0e2e50de49fe632377b8b4adcdd8c4f6eef50af3cff075a6a9b9415bd",
+  "data_check": {
+    "root": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap",
+    "modalities": {
+      "RGB": {
+        "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\images\\extratest_rgb",
+        "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\labels\\extratest_rgb",
+        "image_count": 100,
+        "missing_label_files": 0,
+        "label_rows": 212,
+        "bad_rows": 0,
+        "class_histogram": {
+          "0": 212
+        }
+      },
+      "SAR": {
+        "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\images\\extratest_sar",
+        "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\labels\\extratest_sar",
+        "image_count": 100,
+        "missing_label_files": 0,
+        "label_rows": 145,
+        "bad_rows": 0,
+        "class_histogram": {
+          "0": 145
+        }
+      },
+      "IR": {
+        "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\images\\extratest_ir",
+        "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\labels\\extratest_ir",
+        "image_count": 100,
+        "missing_label_files": 0,
+        "label_rows": 337,
+        "bad_rows": 0,
+        "class_histogram": {
+          "0": 337
+        }
+      }
+    },
+    "class_histogram": {
+      "0": 694
+    },
+    "bad_rows": 0,
+    "label_rows": 694,
+    "only_class_0": true
+  },
+  "baseline_probe": {
+    "wrapper_type": "ultralytics.models.yolo.model.YOLOE",
+    "model_class": "ultralytics.nn.tasks.YOLOESegModel",
+    "task": {
+      "wrapper.task": "segment",
+      "inner.task": "segment",
+      "inner.args.task": "segment"
+    },
+    "last_layer_type": "ultralytics.nn.modules.head.YOLOESegment",
+    "last_layer.nc": 3,
+    "last_layer.nl": 3,
+    "last_layer.no": 67,
+    "last_layer.reg_max": 16,
+    "last_layer.embed": 512,
+    "last_layer.is_fused": true,
+    "names": {
+      "0": "ship",
+      "1": "harbor",
+      "2": "tank"
+    },
+    "pe_shape": [
+      1,
+      3,
+      512
+    ],
+    "score_channels_seen": [
+      3
+    ],
+    "total_params": 11791257,
+    "head_params": 2771705
+  },
+  "head_analysis": {
+    "type": "ultralytics.nn.modules.head.YOLOESegment",
+    "attrs": {
+      "nc": 3,
+      "nl": 3,
+      "no": 67,
+      "reg_max": 16,
+      "nm": 32,
+      "npr": 128,
+      "embed": 512,
+      "is_fused": true,
+      "end2end": false
+    },
+    "modules": {
+      "cv2": {
+        "exists": true,
+        "type": "torch.nn.modules.container.ModuleList",
+        "layers": [
+          "Sequential(\n  (0): Conv(\n    (conv): Conv2d(128, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(64, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (1): Conv(\n    (conv): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(64, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (2): Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1))\n)",
+          "Sequential(\n  (0): Conv(\n    (conv): Conv2d(256, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(64, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (1): Conv(\n    (conv): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(64, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (2): Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1))\n)",
+          "Sequential(\n  (0): Conv(\n    (conv): Conv2d(512, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(64, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (1): Conv(\n    (conv): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(64, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (2): Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1))\n)"
+        ]
+      },
+      "cv3": {
+        "exists": true,
+        "type": "torch.nn.modules.container.ModuleList",
+        "layers": [
+          "Sequential(\n  (0): Conv(\n    (conv): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (1): Conv(\n    (conv): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (2): Conv2d(128, 3, kernel_size=(1, 1), stride=(1, 1))\n)",
+          "Sequential(\n  (0): Conv(\n    (conv): Conv2d(256, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (1): Conv(\n    (conv): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (2): Conv2d(128, 3, kernel_size=(1, 1), stride=(1, 1))\n)",
+          "Sequential(\n  (0): Conv(\n    (conv): Conv2d(512, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (1): Conv(\n    (conv): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (2): Conv2d(128, 3, kernel_size=(1, 1), stride=(1, 1))\n)"
+        ]
+      },
+      "cv4": {
+        "exists": true,
+        "type": "torch.nn.modules.container.ModuleList",
+        "layers": [
+          "BNContrastiveHead()",
+          "BNContrastiveHead()",
+          "BNContrastiveHead()"
+        ]
+      },
+      "cv5": {
+        "exists": true,
+        "type": "torch.nn.modules.container.ModuleList",
+        "layers": [
+          "Sequential(\n  (0): Conv(\n    (conv): Conv2d(128, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (1): Conv(\n    (conv): Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (2): Conv2d(32, 32, kernel_size=(1, 1), stride=(1, 1))\n)",
+          "Sequential(\n  (0): Conv(\n    (conv): Conv2d(256, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (1): Conv(\n    (conv): Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (2): Conv2d(32, 32, kernel_size=(1, 1), stride=(1, 1))\n)",
+          "Sequential(\n  (0): Conv(\n    (conv): Conv2d(512, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (1): Conv(\n    (conv): Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (2): Conv2d(32, 32, kernel_size=(1, 1), stride=(1, 1))\n)"
+        ]
+      },
+      "proto": {
+        "exists": true,
+        "type": "ultralytics.nn.modules.block.Proto",
+        "repr": "Proto(\n  (cv1): Conv(\n    (conv): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (upsample): ConvTranspose2d(128, 128, kernel_size=(2, 2), stride=(2, 2))\n  (cv2): Conv(\n    (conv): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n  (cv3): Conv(\n    (conv): Conv2d(128, 32, kernel_size=(1, 1), stride=(1, 1), bias=False)\n    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)\n    (act): SiLU(inplace=True)\n  )\n)"
+      },
+      "reprta": {
+        "exists": true,
+        "type": "torch.nn.modules.linear.Identity",
+        "repr": "Identity()"
+      },
+      "savpe": {
+        "exists": false,
+        "type": null,
+        "repr": null
+      },
+      "lrpc": {
+        "exists": false,
+        "type": null,
+        "repr": null
+      },
+      "one2one": {
+        "exists": false,
+        "type": null,
+        "repr": null
+      }
+    },
+    "state_dict": [
+      {
+        "key": "model.22.cv2.0.0.conv.weight",
+        "shape": [
+          64,
+          128,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.0.0.bn.weight",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.0.0.bn.bias",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.0.0.bn.running_mean",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.0.0.bn.running_var",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.0.0.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv2.0.1.conv.weight",
+        "shape": [
+          64,
+          64,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.0.1.bn.weight",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.0.1.bn.bias",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.0.1.bn.running_mean",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.0.1.bn.running_var",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.0.1.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv2.0.2.weight",
+        "shape": [
+          64,
+          64,
+          1,
+          1
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.0.2.bias",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.1.0.conv.weight",
+        "shape": [
+          64,
+          256,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.1.0.bn.weight",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.1.0.bn.bias",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.1.0.bn.running_mean",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.1.0.bn.running_var",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.1.0.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv2.1.1.conv.weight",
+        "shape": [
+          64,
+          64,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.1.1.bn.weight",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.1.1.bn.bias",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.1.1.bn.running_mean",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.1.1.bn.running_var",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.1.1.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv2.1.2.weight",
+        "shape": [
+          64,
+          64,
+          1,
+          1
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.1.2.bias",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.2.0.conv.weight",
+        "shape": [
+          64,
+          512,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.2.0.bn.weight",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.2.0.bn.bias",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.2.0.bn.running_mean",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.2.0.bn.running_var",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.2.0.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv2.2.1.conv.weight",
+        "shape": [
+          64,
+          64,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.2.1.bn.weight",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.2.1.bn.bias",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.2.1.bn.running_mean",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.2.1.bn.running_var",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.2.1.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv2.2.2.weight",
+        "shape": [
+          64,
+          64,
+          1,
+          1
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv2.2.2.bias",
+        "shape": [
+          64
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.0.0.conv.weight",
+        "shape": [
+          128,
+          128,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.0.0.bn.weight",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.0.0.bn.bias",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.0.0.bn.running_mean",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.0.0.bn.running_var",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.0.0.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv3.0.1.conv.weight",
+        "shape": [
+          128,
+          128,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.0.1.bn.weight",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.0.1.bn.bias",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.0.1.bn.running_mean",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.0.1.bn.running_var",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.0.1.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv3.0.2.weight",
+        "shape": [
+          3,
+          128,
+          1,
+          1
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.0.2.bias",
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.1.0.conv.weight",
+        "shape": [
+          128,
+          256,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.1.0.bn.weight",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.1.0.bn.bias",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.1.0.bn.running_mean",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.1.0.bn.running_var",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.1.0.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv3.1.1.conv.weight",
+        "shape": [
+          128,
+          128,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.1.1.bn.weight",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.1.1.bn.bias",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.1.1.bn.running_mean",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.1.1.bn.running_var",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.1.1.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv3.1.2.weight",
+        "shape": [
+          3,
+          128,
+          1,
+          1
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.1.2.bias",
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.2.0.conv.weight",
+        "shape": [
+          128,
+          512,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.2.0.bn.weight",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.2.0.bn.bias",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.2.0.bn.running_mean",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.2.0.bn.running_var",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.2.0.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv3.2.1.conv.weight",
+        "shape": [
+          128,
+          128,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.2.1.bn.weight",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.2.1.bn.bias",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.2.1.bn.running_mean",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.2.1.bn.running_var",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.2.1.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv3.2.2.weight",
+        "shape": [
+          3,
+          128,
+          1,
+          1
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv3.2.2.bias",
+        "shape": [
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.dfl.conv.weight",
+        "shape": [
+          1,
+          16,
+          1,
+          1
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv1.conv.weight",
+        "shape": [
+          128,
+          128,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv1.bn.weight",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv1.bn.bias",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv1.bn.running_mean",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv1.bn.running_var",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv1.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.proto.upsample.weight",
+        "shape": [
+          128,
+          128,
+          2,
+          2
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.upsample.bias",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv2.conv.weight",
+        "shape": [
+          128,
+          128,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv2.bn.weight",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv2.bn.bias",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv2.bn.running_mean",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv2.bn.running_var",
+        "shape": [
+          128
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv2.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.proto.cv3.conv.weight",
+        "shape": [
+          32,
+          128,
+          1,
+          1
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv3.bn.weight",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv3.bn.bias",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv3.bn.running_mean",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv3.bn.running_var",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.proto.cv3.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv5.0.0.conv.weight",
+        "shape": [
+          32,
+          128,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.0.0.bn.weight",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.0.0.bn.bias",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.0.0.bn.running_mean",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.0.0.bn.running_var",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.0.0.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv5.0.1.conv.weight",
+        "shape": [
+          32,
+          32,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.0.1.bn.weight",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.0.1.bn.bias",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.0.1.bn.running_mean",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.0.1.bn.running_var",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.0.1.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv5.0.2.weight",
+        "shape": [
+          32,
+          32,
+          1,
+          1
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.0.2.bias",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.1.0.conv.weight",
+        "shape": [
+          32,
+          256,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.1.0.bn.weight",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.1.0.bn.bias",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.1.0.bn.running_mean",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.1.0.bn.running_var",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.1.0.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv5.1.1.conv.weight",
+        "shape": [
+          32,
+          32,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.1.1.bn.weight",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.1.1.bn.bias",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.1.1.bn.running_mean",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.1.1.bn.running_var",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.1.1.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv5.1.2.weight",
+        "shape": [
+          32,
+          32,
+          1,
+          1
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.1.2.bias",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.2.0.conv.weight",
+        "shape": [
+          32,
+          512,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.2.0.bn.weight",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.2.0.bn.bias",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.2.0.bn.running_mean",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.2.0.bn.running_var",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.2.0.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv5.2.1.conv.weight",
+        "shape": [
+          32,
+          32,
+          3,
+          3
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.2.1.bn.weight",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.2.1.bn.bias",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.2.1.bn.running_mean",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.2.1.bn.running_var",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.2.1.bn.num_batches_tracked",
+        "shape": [],
+        "dtype": "torch.int64"
+      },
+      {
+        "key": "model.22.cv5.2.2.weight",
+        "shape": [
+          32,
+          32,
+          1,
+          1
+        ],
+        "dtype": "torch.float32"
+      },
+      {
+        "key": "model.22.cv5.2.2.bias",
+        "shape": [
+          32
+        ],
+        "dtype": "torch.float32"
+      }
+    ],
+    "diagnosis": "For a fused YOLOESegment, cv3[i][-1] is the fixed vocabulary Conv2d and cv4[i] is fused to an identity pass-through. set_classes changes nc/names/pe but does not resize cv3[i][-1]."
+  },
+  "baseline_eval": {
+    "RGB": {
+      "gt_count": 212,
+      "prediction_count": 229,
+      "tp": 204,
+      "fp": 25,
+      "fn": 8,
+      "precision": 0.8908296943231441,
+      "recall": 0.9622641509433962,
+      "ap50": 0.9509885989423132,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 212,
+      "nms_boxes_all_classes": 229,
+      "score_channels_seen": [
+        3
+      ]
+    },
+    "SAR": {
+      "gt_count": 145,
+      "prediction_count": 161,
+      "tp": 133,
+      "fp": 28,
+      "fn": 12,
+      "precision": 0.8260869565217391,
+      "recall": 0.9172413793103448,
+      "ap50": 0.8972270074107946,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 145,
+      "nms_boxes_all_classes": 162,
+      "score_channels_seen": [
+        3
+      ]
+    },
+    "IR": {
+      "gt_count": 337,
+      "prediction_count": 359,
+      "tp": 315,
+      "fp": 44,
+      "fn": 22,
+      "precision": 0.8774373259052924,
+      "recall": 0.9347181008902077,
+      "ap50": 0.9155420013283813,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 337,
+      "nms_boxes_all_classes": 359,
+      "score_channels_seen": [
+        3
+      ]
+    },
+    "ALL": {
+      "gt_count": 694,
+      "prediction_count": 749,
+      "tp": 652,
+      "fp": 97,
+      "fn": 42,
+      "precision": 0.8704939919893191,
+      "recall": 0.9394812680115274,
+      "ap50": 0.9213457720649441,
+      "image_count": 300,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "score_channels_seen": [
+        3
+      ]
+    }
+  },
+  "global4_set_only_probe": {
+    "wrapper_type": "ultralytics.models.yolo.model.YOLOE",
+    "model_class": "ultralytics.nn.tasks.YOLOESegModel",
+    "task": {
+      "wrapper.task": "segment",
+      "inner.task": "segment",
+      "inner.args.task": "segment"
+    },
+    "last_layer_type": "ultralytics.nn.modules.head.YOLOESegment",
+    "last_layer.nc": 4,
+    "last_layer.nl": 3,
+    "last_layer.no": 67,
+    "last_layer.reg_max": 16,
+    "last_layer.embed": 512,
+    "last_layer.is_fused": true,
+    "names": {
+      "0": "ship",
+      "1": "harbor",
+      "2": "tank",
+      "3": "bridge"
+    },
+    "pe_shape": [
+      1,
+      4,
+      512
+    ],
+    "score_channels_seen": [
+      3
+    ],
+    "total_params": 11791257,
+    "head_params": 2771705,
+    "names_pe_changed_but_scores_still_3": true
+  },
+  "global4_set_only_eval": {
+    "RGB": {
+      "gt_count": 212,
+      "prediction_count": 229,
+      "tp": 204,
+      "fp": 25,
+      "fn": 8,
+      "precision": 0.8908296943231441,
+      "recall": 0.9622641509433962,
+      "ap50": 0.9509885989423132,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 212,
+      "nms_boxes_all_classes": 229,
+      "score_channels_seen": [
+        3
+      ]
+    },
+    "SAR": {
+      "gt_count": 145,
+      "prediction_count": 161,
+      "tp": 133,
+      "fp": 28,
+      "fn": 12,
+      "precision": 0.8260869565217391,
+      "recall": 0.9172413793103448,
+      "ap50": 0.8972270074107946,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 145,
+      "nms_boxes_all_classes": 162,
+      "score_channels_seen": [
+        3
+      ]
+    },
+    "IR": {
+      "gt_count": 337,
+      "prediction_count": 359,
+      "tp": 315,
+      "fp": 44,
+      "fn": 22,
+      "precision": 0.8774373259052924,
+      "recall": 0.9347181008902077,
+      "ap50": 0.9155420013283813,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 337,
+      "nms_boxes_all_classes": 359,
+      "score_channels_seen": [
+        3
+      ]
+    },
+    "ALL": {
+      "gt_count": 694,
+      "prediction_count": 749,
+      "tp": 652,
+      "fp": 97,
+      "fn": 42,
+      "precision": 0.8704939919893191,
+      "recall": 0.9394812680115274,
+      "ap50": 0.9213457720649441,
+      "image_count": 300,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "score_channels_seen": [
+        3
+      ]
+    }
+  },
+  "expansion": {
+    "strategy": "mean_of_old_class_rows",
+    "modified_modules": [
+      "model.22.cv3.0.2",
+      "model.22.cv3.1.2",
+      "model.22.cv3.2.2"
+    ],
+    "modified_state_dict_keys": [
+      "model.22.cv3.0.2.bias",
+      "model.22.cv3.0.2.weight",
+      "model.22.cv3.1.2.bias",
+      "model.22.cv3.1.2.weight",
+      "model.22.cv3.2.2.bias",
+      "model.22.cv3.2.2.weight"
+    ],
+    "expected_modified_state_dict_keys": [
+      "model.22.cv3.0.2.bias",
+      "model.22.cv3.0.2.weight",
+      "model.22.cv3.1.2.bias",
+      "model.22.cv3.1.2.weight",
+      "model.22.cv3.2.2.bias",
+      "model.22.cv3.2.2.weight"
+    ],
+    "shape_changes": [
+      {
+        "module": "model.22.cv3.0.2",
+        "key": "model.22.cv3.0.2.weight",
+        "old_shape": [
+          3,
+          128,
+          1,
+          1
+        ],
+        "new_shape": [
+          4,
+          128,
+          1,
+          1
+        ]
+      },
+      {
+        "module": "model.22.cv3.0.2",
+        "key": "model.22.cv3.0.2.bias",
+        "old_shape": [
+          3
+        ],
+        "new_shape": [
+          4
+        ]
+      },
+      {
+        "module": "model.22.cv3.1.2",
+        "key": "model.22.cv3.1.2.weight",
+        "old_shape": [
+          3,
+          128,
+          1,
+          1
+        ],
+        "new_shape": [
+          4,
+          128,
+          1,
+          1
+        ]
+      },
+      {
+        "module": "model.22.cv3.1.2",
+        "key": "model.22.cv3.1.2.bias",
+        "old_shape": [
+          3
+        ],
+        "new_shape": [
+          4
+        ]
+      },
+      {
+        "module": "model.22.cv3.2.2",
+        "key": "model.22.cv3.2.2.weight",
+        "old_shape": [
+          3,
+          128,
+          1,
+          1
+        ],
+        "new_shape": [
+          4,
+          128,
+          1,
+          1
+        ]
+      },
+      {
+        "module": "model.22.cv3.2.2",
+        "key": "model.22.cv3.2.2.bias",
+        "old_shape": [
+          3
+        ],
+        "new_shape": [
+          4
+        ]
+      }
+    ],
+    "old_classes_0_1_2_copied_exactly": true,
+    "all_unrelated_parameters_unchanged": true,
+    "only_expected_keys_modified": true,
+    "source_checkpoint_modified": false,
+    "success_in_memory": true
+  },
+  "expanded_probe_in_memory": {
+    "wrapper_type": "ultralytics.models.yolo.model.YOLOE",
+    "model_class": "ultralytics.nn.tasks.YOLOESegModel",
+    "task": {
+      "wrapper.task": "segment",
+      "inner.task": "segment",
+      "inner.args.task": "segment"
+    },
+    "last_layer_type": "ultralytics.nn.modules.head.YOLOESegment",
+    "last_layer.nc": 4,
+    "last_layer.nl": 3,
+    "last_layer.no": 68,
+    "last_layer.reg_max": 16,
+    "last_layer.embed": 512,
+    "last_layer.is_fused": true,
+    "names": {
+      "0": "ship",
+      "1": "harbor",
+      "2": "tank",
+      "3": "bridge"
+    },
+    "pe_shape": [
+      1,
+      4,
+      512
+    ],
+    "score_channels_seen": [
+      4
+    ],
+    "total_params": 11791644,
+    "head_params": 2772092
+  },
+  "expanded_checkpoint_saved": true,
+  "expanded_checkpoint_sha256": "812ddf732d8ede7aa990ab62c412da85a7908fb20012e660cfab72efd2cd5359",
+  "expanded_probe": {
+    "wrapper_type": "ultralytics.models.yolo.model.YOLOE",
+    "model_class": "ultralytics.nn.tasks.YOLOESegModel",
+    "task": {
+      "wrapper.task": "segment",
+      "inner.task": "segment",
+      "inner.args.task": "segment"
+    },
+    "last_layer_type": "ultralytics.nn.modules.head.YOLOESegment",
+    "last_layer.nc": 4,
+    "last_layer.nl": 3,
+    "last_layer.no": 68,
+    "last_layer.reg_max": 16,
+    "last_layer.embed": 512,
+    "last_layer.is_fused": true,
+    "names": {
+      "0": "ship",
+      "1": "harbor",
+      "2": "tank",
+      "3": "bridge"
+    },
+    "pe_shape": [
+      1,
+      4,
+      512
+    ],
+    "score_channels_seen": [
+      4
+    ],
+    "total_params": 11791644,
+    "head_params": 2772092
+  },
+  "expanded_eval": {
+    "RGB": {
+      "gt_count": 212,
+      "prediction_count": 229,
+      "tp": 204,
+      "fp": 25,
+      "fn": 8,
+      "precision": 0.8908296943231441,
+      "recall": 0.9622641509433962,
+      "ap50": 0.9509885989423132,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 212,
+      "nms_boxes_all_classes": 229,
+      "score_channels_seen": [
+        4
+      ]
+    },
+    "SAR": {
+      "gt_count": 145,
+      "prediction_count": 161,
+      "tp": 133,
+      "fp": 28,
+      "fn": 12,
+      "precision": 0.8260869565217391,
+      "recall": 0.9172413793103448,
+      "ap50": 0.8972270074107946,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 145,
+      "nms_boxes_all_classes": 162,
+      "score_channels_seen": [
+        4
+      ]
+    },
+    "IR": {
+      "gt_count": 337,
+      "prediction_count": 359,
+      "tp": 315,
+      "fp": 44,
+      "fn": 22,
+      "precision": 0.8774373259052924,
+      "recall": 0.9347181008902077,
+      "ap50": 0.9155420013283813,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 337,
+      "nms_boxes_all_classes": 359,
+      "score_channels_seen": [
+        4
+      ]
+    },
+    "ALL": {
+      "gt_count": 694,
+      "prediction_count": 749,
+      "tp": 652,
+      "fp": 97,
+      "fn": 42,
+      "precision": 0.8704939919893191,
+      "recall": 0.9394812680115274,
+      "ap50": 0.9213457720649441,
+      "image_count": 300,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "score_channels_seen": [
+        4
+      ]
+    }
+  },
+  "conclusion": {
+    "global4_expansion_success": true,
+    "baseline_all_ship_ap50": 0.9213457720649441,
+    "global4_set_only_all_ship_ap50": 0.9213457720649441,
+    "expanded_all_ship_ap50": 0.9213457720649441,
+    "expanded_minus_baseline_ap50": 0.0,
+    "ship_preserved": true,
+    "ready_for_next_box_only_trainer_step": true
+  },
+  "source_sha256_after": "50f306b0e2e50de49fe632377b8b4adcdd8c4f6eef50af3cff075a6a9b9415bd",
+  "source_bestpt_untouched": true
+}

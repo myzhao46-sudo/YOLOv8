@@ -1,0 +1,477 @@
+
+[SHIP DATA CHECK]
+{
+  "root": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap",
+  "modalities": {
+    "RGB": {
+      "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\images\\extratest_rgb",
+      "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\labels\\extratest_rgb",
+      "image_count": 100,
+      "missing_label_files": 0,
+      "label_rows": 212,
+      "bad_rows": 0,
+      "class_histogram": {
+        "0": 212
+      }
+    },
+    "SAR": {
+      "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\images\\extratest_sar",
+      "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\labels\\extratest_sar",
+      "image_count": 100,
+      "missing_label_files": 0,
+      "label_rows": 145,
+      "bad_rows": 0,
+      "class_histogram": {
+        "0": 145
+      }
+    },
+    "IR": {
+      "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\images\\extratest_ir",
+      "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\labels\\extratest_ir",
+      "image_count": 100,
+      "missing_label_files": 0,
+      "label_rows": 337,
+      "bad_rows": 0,
+      "class_histogram": {
+        "0": 337
+      }
+    }
+  },
+  "class_histogram": {
+    "0": 694
+  },
+  "bad_rows": 0,
+  "label_rows": 694,
+  "only_class_0": true
+}
+
+[BASELINE NAMES3 PROBE]
+{
+  "wrapper_type": "ultralytics.models.yolo.model.YOLOE",
+  "model_class": "ultralytics.nn.tasks.YOLOESegModel",
+  "task": {
+    "wrapper.task": "segment",
+    "inner.task": "segment",
+    "inner.args.task": "segment"
+  },
+  "last_layer_type": "ultralytics.nn.modules.head.YOLOESegment",
+  "last_layer.nc": 3,
+  "last_layer.nl": 3,
+  "last_layer.no": 67,
+  "last_layer.reg_max": 16,
+  "last_layer.embed": 512,
+  "last_layer.is_fused": true,
+  "names": {
+    "0": "ship",
+    "1": "harbor",
+    "2": "tank"
+  },
+  "pe_shape": [
+    1,
+    3,
+    512
+  ],
+  "score_channels_seen": [
+    3
+  ],
+  "total_params": 11791257,
+  "head_params": 2771705
+}
+
+[FUSED HEAD ANALYSIS]
+head type: ultralytics.nn.modules.head.YOLOESegment
+head attrs: {"nc": 3, "nl": 3, "no": 67, "reg_max": 16, "nm": 32, "npr": 128, "embed": 512, "is_fused": true, "end2end": false}
+cv2[0]: Sequential(
+  (0): Conv(
+    (conv): Conv2d(128, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(64, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (1): Conv(
+    (conv): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(64, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (2): Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1))
+)
+cv2[1]: Sequential(
+  (0): Conv(
+    (conv): Conv2d(256, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(64, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (1): Conv(
+    (conv): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(64, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (2): Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1))
+)
+cv2[2]: Sequential(
+  (0): Conv(
+    (conv): Conv2d(512, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(64, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (1): Conv(
+    (conv): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(64, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (2): Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1))
+)
+cv3[0]: Sequential(
+  (0): Conv(
+    (conv): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (1): Conv(
+    (conv): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (2): Conv2d(128, 3, kernel_size=(1, 1), stride=(1, 1))
+)
+cv3[1]: Sequential(
+  (0): Conv(
+    (conv): Conv2d(256, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (1): Conv(
+    (conv): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (2): Conv2d(128, 3, kernel_size=(1, 1), stride=(1, 1))
+)
+cv3[2]: Sequential(
+  (0): Conv(
+    (conv): Conv2d(512, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (1): Conv(
+    (conv): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(128, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (2): Conv2d(128, 3, kernel_size=(1, 1), stride=(1, 1))
+)
+cv4[0]: BNContrastiveHead()
+cv4[1]: BNContrastiveHead()
+cv4[2]: BNContrastiveHead()
+cv5[0]: Sequential(
+  (0): Conv(
+    (conv): Conv2d(128, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (1): Conv(
+    (conv): Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (2): Conv2d(32, 32, kernel_size=(1, 1), stride=(1, 1))
+)
+cv5[1]: Sequential(
+  (0): Conv(
+    (conv): Conv2d(256, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (1): Conv(
+    (conv): Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (2): Conv2d(32, 32, kernel_size=(1, 1), stride=(1, 1))
+)
+cv5[2]: Sequential(
+  (0): Conv(
+    (conv): Conv2d(512, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (1): Conv(
+    (conv): Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn): BatchNorm2d(32, eps=0.001, momentum=0.03, affine=True, track_running_stats=True)
+    (act): SiLU(inplace=True)
+  )
+  (2): Conv2d(32, 32, kernel_size=(1, 1), stride=(1, 1))
+)
+proto: exists=True, type=ultralytics.nn.modules.block.Proto
+reprta: exists=True, type=torch.nn.modules.linear.Identity
+savpe: exists=False, type=None
+lrpc: exists=False, type=None
+one2one: exists=False, type=None
+model.22.cv2.0.0.conv.weight: [64, 128, 3, 3] torch.float32
+model.22.cv2.0.0.bn.weight: [64] torch.float32
+model.22.cv2.0.0.bn.bias: [64] torch.float32
+model.22.cv2.0.0.bn.running_mean: [64] torch.float32
+model.22.cv2.0.0.bn.running_var: [64] torch.float32
+model.22.cv2.0.0.bn.num_batches_tracked: [] torch.int64
+model.22.cv2.0.1.conv.weight: [64, 64, 3, 3] torch.float32
+model.22.cv2.0.1.bn.weight: [64] torch.float32
+model.22.cv2.0.1.bn.bias: [64] torch.float32
+model.22.cv2.0.1.bn.running_mean: [64] torch.float32
+model.22.cv2.0.1.bn.running_var: [64] torch.float32
+model.22.cv2.0.1.bn.num_batches_tracked: [] torch.int64
+model.22.cv2.0.2.weight: [64, 64, 1, 1] torch.float32
+model.22.cv2.0.2.bias: [64] torch.float32
+model.22.cv2.1.0.conv.weight: [64, 256, 3, 3] torch.float32
+model.22.cv2.1.0.bn.weight: [64] torch.float32
+model.22.cv2.1.0.bn.bias: [64] torch.float32
+model.22.cv2.1.0.bn.running_mean: [64] torch.float32
+model.22.cv2.1.0.bn.running_var: [64] torch.float32
+model.22.cv2.1.0.bn.num_batches_tracked: [] torch.int64
+model.22.cv2.1.1.conv.weight: [64, 64, 3, 3] torch.float32
+model.22.cv2.1.1.bn.weight: [64] torch.float32
+model.22.cv2.1.1.bn.bias: [64] torch.float32
+model.22.cv2.1.1.bn.running_mean: [64] torch.float32
+model.22.cv2.1.1.bn.running_var: [64] torch.float32
+model.22.cv2.1.1.bn.num_batches_tracked: [] torch.int64
+model.22.cv2.1.2.weight: [64, 64, 1, 1] torch.float32
+model.22.cv2.1.2.bias: [64] torch.float32
+model.22.cv2.2.0.conv.weight: [64, 512, 3, 3] torch.float32
+model.22.cv2.2.0.bn.weight: [64] torch.float32
+model.22.cv2.2.0.bn.bias: [64] torch.float32
+model.22.cv2.2.0.bn.running_mean: [64] torch.float32
+model.22.cv2.2.0.bn.running_var: [64] torch.float32
+model.22.cv2.2.0.bn.num_batches_tracked: [] torch.int64
+model.22.cv2.2.1.conv.weight: [64, 64, 3, 3] torch.float32
+model.22.cv2.2.1.bn.weight: [64] torch.float32
+model.22.cv2.2.1.bn.bias: [64] torch.float32
+model.22.cv2.2.1.bn.running_mean: [64] torch.float32
+model.22.cv2.2.1.bn.running_var: [64] torch.float32
+model.22.cv2.2.1.bn.num_batches_tracked: [] torch.int64
+model.22.cv2.2.2.weight: [64, 64, 1, 1] torch.float32
+model.22.cv2.2.2.bias: [64] torch.float32
+model.22.cv3.0.0.conv.weight: [128, 128, 3, 3] torch.float32
+model.22.cv3.0.0.bn.weight: [128] torch.float32
+model.22.cv3.0.0.bn.bias: [128] torch.float32
+model.22.cv3.0.0.bn.running_mean: [128] torch.float32
+model.22.cv3.0.0.bn.running_var: [128] torch.float32
+model.22.cv3.0.0.bn.num_batches_tracked: [] torch.int64
+model.22.cv3.0.1.conv.weight: [128, 128, 3, 3] torch.float32
+model.22.cv3.0.1.bn.weight: [128] torch.float32
+model.22.cv3.0.1.bn.bias: [128] torch.float32
+model.22.cv3.0.1.bn.running_mean: [128] torch.float32
+model.22.cv3.0.1.bn.running_var: [128] torch.float32
+model.22.cv3.0.1.bn.num_batches_tracked: [] torch.int64
+model.22.cv3.0.2.weight: [3, 128, 1, 1] torch.float32
+model.22.cv3.0.2.bias: [3] torch.float32
+model.22.cv3.1.0.conv.weight: [128, 256, 3, 3] torch.float32
+model.22.cv3.1.0.bn.weight: [128] torch.float32
+model.22.cv3.1.0.bn.bias: [128] torch.float32
+model.22.cv3.1.0.bn.running_mean: [128] torch.float32
+model.22.cv3.1.0.bn.running_var: [128] torch.float32
+model.22.cv3.1.0.bn.num_batches_tracked: [] torch.int64
+model.22.cv3.1.1.conv.weight: [128, 128, 3, 3] torch.float32
+model.22.cv3.1.1.bn.weight: [128] torch.float32
+model.22.cv3.1.1.bn.bias: [128] torch.float32
+model.22.cv3.1.1.bn.running_mean: [128] torch.float32
+model.22.cv3.1.1.bn.running_var: [128] torch.float32
+model.22.cv3.1.1.bn.num_batches_tracked: [] torch.int64
+model.22.cv3.1.2.weight: [3, 128, 1, 1] torch.float32
+model.22.cv3.1.2.bias: [3] torch.float32
+model.22.cv3.2.0.conv.weight: [128, 512, 3, 3] torch.float32
+model.22.cv3.2.0.bn.weight: [128] torch.float32
+model.22.cv3.2.0.bn.bias: [128] torch.float32
+model.22.cv3.2.0.bn.running_mean: [128] torch.float32
+model.22.cv3.2.0.bn.running_var: [128] torch.float32
+model.22.cv3.2.0.bn.num_batches_tracked: [] torch.int64
+model.22.cv3.2.1.conv.weight: [128, 128, 3, 3] torch.float32
+model.22.cv3.2.1.bn.weight: [128] torch.float32
+model.22.cv3.2.1.bn.bias: [128] torch.float32
+model.22.cv3.2.1.bn.running_mean: [128] torch.float32
+model.22.cv3.2.1.bn.running_var: [128] torch.float32
+model.22.cv3.2.1.bn.num_batches_tracked: [] torch.int64
+model.22.cv3.2.2.weight: [3, 128, 1, 1] torch.float32
+model.22.cv3.2.2.bias: [3] torch.float32
+model.22.dfl.conv.weight: [1, 16, 1, 1] torch.float32
+model.22.proto.cv1.conv.weight: [128, 128, 3, 3] torch.float32
+model.22.proto.cv1.bn.weight: [128] torch.float32
+model.22.proto.cv1.bn.bias: [128] torch.float32
+model.22.proto.cv1.bn.running_mean: [128] torch.float32
+model.22.proto.cv1.bn.running_var: [128] torch.float32
+model.22.proto.cv1.bn.num_batches_tracked: [] torch.int64
+model.22.proto.upsample.weight: [128, 128, 2, 2] torch.float32
+model.22.proto.upsample.bias: [128] torch.float32
+model.22.proto.cv2.conv.weight: [128, 128, 3, 3] torch.float32
+model.22.proto.cv2.bn.weight: [128] torch.float32
+model.22.proto.cv2.bn.bias: [128] torch.float32
+model.22.proto.cv2.bn.running_mean: [128] torch.float32
+model.22.proto.cv2.bn.running_var: [128] torch.float32
+model.22.proto.cv2.bn.num_batches_tracked: [] torch.int64
+model.22.proto.cv3.conv.weight: [32, 128, 1, 1] torch.float32
+model.22.proto.cv3.bn.weight: [32] torch.float32
+model.22.proto.cv3.bn.bias: [32] torch.float32
+model.22.proto.cv3.bn.running_mean: [32] torch.float32
+model.22.proto.cv3.bn.running_var: [32] torch.float32
+model.22.proto.cv3.bn.num_batches_tracked: [] torch.int64
+model.22.cv5.0.0.conv.weight: [32, 128, 3, 3] torch.float32
+model.22.cv5.0.0.bn.weight: [32] torch.float32
+model.22.cv5.0.0.bn.bias: [32] torch.float32
+model.22.cv5.0.0.bn.running_mean: [32] torch.float32
+model.22.cv5.0.0.bn.running_var: [32] torch.float32
+model.22.cv5.0.0.bn.num_batches_tracked: [] torch.int64
+model.22.cv5.0.1.conv.weight: [32, 32, 3, 3] torch.float32
+model.22.cv5.0.1.bn.weight: [32] torch.float32
+model.22.cv5.0.1.bn.bias: [32] torch.float32
+model.22.cv5.0.1.bn.running_mean: [32] torch.float32
+model.22.cv5.0.1.bn.running_var: [32] torch.float32
+model.22.cv5.0.1.bn.num_batches_tracked: [] torch.int64
+model.22.cv5.0.2.weight: [32, 32, 1, 1] torch.float32
+model.22.cv5.0.2.bias: [32] torch.float32
+model.22.cv5.1.0.conv.weight: [32, 256, 3, 3] torch.float32
+model.22.cv5.1.0.bn.weight: [32] torch.float32
+model.22.cv5.1.0.bn.bias: [32] torch.float32
+model.22.cv5.1.0.bn.running_mean: [32] torch.float32
+model.22.cv5.1.0.bn.running_var: [32] torch.float32
+model.22.cv5.1.0.bn.num_batches_tracked: [] torch.int64
+model.22.cv5.1.1.conv.weight: [32, 32, 3, 3] torch.float32
+model.22.cv5.1.1.bn.weight: [32] torch.float32
+model.22.cv5.1.1.bn.bias: [32] torch.float32
+model.22.cv5.1.1.bn.running_mean: [32] torch.float32
+model.22.cv5.1.1.bn.running_var: [32] torch.float32
+model.22.cv5.1.1.bn.num_batches_tracked: [] torch.int64
+model.22.cv5.1.2.weight: [32, 32, 1, 1] torch.float32
+model.22.cv5.1.2.bias: [32] torch.float32
+model.22.cv5.2.0.conv.weight: [32, 512, 3, 3] torch.float32
+model.22.cv5.2.0.bn.weight: [32] torch.float32
+model.22.cv5.2.0.bn.bias: [32] torch.float32
+model.22.cv5.2.0.bn.running_mean: [32] torch.float32
+model.22.cv5.2.0.bn.running_var: [32] torch.float32
+model.22.cv5.2.0.bn.num_batches_tracked: [] torch.int64
+model.22.cv5.2.1.conv.weight: [32, 32, 3, 3] torch.float32
+model.22.cv5.2.1.bn.weight: [32] torch.float32
+model.22.cv5.2.1.bn.bias: [32] torch.float32
+model.22.cv5.2.1.bn.running_mean: [32] torch.float32
+model.22.cv5.2.1.bn.running_var: [32] torch.float32
+model.22.cv5.2.1.bn.num_batches_tracked: [] torch.int64
+model.22.cv5.2.2.weight: [32, 32, 1, 1] torch.float32
+model.22.cv5.2.2.bias: [32] torch.float32
+
+[BASELINE NAMES3 SHIP EVAL]
+RGB: AP50=0.950989 P=0.890830 R=0.962264
+SAR: AP50=0.897227 P=0.826087 R=0.917241
+IR: AP50=0.915542 P=0.877437 R=0.934718
+ALL: AP50=0.921346 P=0.870494 R=0.939481
+
+[GLOBAL4 SET_CLASSES-ONLY PROBE]
+{
+  "wrapper_type": "ultralytics.models.yolo.model.YOLOE",
+  "model_class": "ultralytics.nn.tasks.YOLOESegModel",
+  "task": {
+    "wrapper.task": "segment",
+    "inner.task": "segment",
+    "inner.args.task": "segment"
+  },
+  "last_layer_type": "ultralytics.nn.modules.head.YOLOESegment",
+  "last_layer.nc": 4,
+  "last_layer.nl": 3,
+  "last_layer.no": 67,
+  "last_layer.reg_max": 16,
+  "last_layer.embed": 512,
+  "last_layer.is_fused": true,
+  "names": {
+    "0": "ship",
+    "1": "harbor",
+    "2": "tank",
+    "3": "bridge"
+  },
+  "pe_shape": [
+    1,
+    4,
+    512
+  ],
+  "score_channels_seen": [
+    3
+  ],
+  "total_params": 11791257,
+  "head_params": 2771705
+}
+
+[GLOBAL4 SET_CLASSES-ONLY SHIP EVAL]
+RGB: AP50=0.950989 P=0.890830 R=0.962264
+SAR: AP50=0.897227 P=0.826087 R=0.917241
+IR: AP50=0.915542 P=0.877437 R=0.934718
+ALL: AP50=0.921346 P=0.870494 R=0.939481
+
+[GLOBAL4 FUSED SCORE EXPANSION]
+{
+  "wrapper_type": "ultralytics.models.yolo.model.YOLOE",
+  "model_class": "ultralytics.nn.tasks.YOLOESegModel",
+  "task": {
+    "wrapper.task": "segment",
+    "inner.task": "segment",
+    "inner.args.task": "segment"
+  },
+  "last_layer_type": "ultralytics.nn.modules.head.YOLOESegment",
+  "last_layer.nc": 4,
+  "last_layer.nl": 3,
+  "last_layer.no": 68,
+  "last_layer.reg_max": 16,
+  "last_layer.embed": 512,
+  "last_layer.is_fused": true,
+  "names": {
+    "0": "ship",
+    "1": "harbor",
+    "2": "tank",
+    "3": "bridge"
+  },
+  "pe_shape": [
+    1,
+    4,
+    512
+  ],
+  "score_channels_seen": [
+    4
+  ],
+  "total_params": 11791644,
+  "head_params": 2772092
+}
+
+[EXPANDED CHECKPOINT RELOAD PROBE]
+{
+  "wrapper_type": "ultralytics.models.yolo.model.YOLOE",
+  "model_class": "ultralytics.nn.tasks.YOLOESegModel",
+  "task": {
+    "wrapper.task": "segment",
+    "inner.task": "segment",
+    "inner.args.task": "segment"
+  },
+  "last_layer_type": "ultralytics.nn.modules.head.YOLOESegment",
+  "last_layer.nc": 4,
+  "last_layer.nl": 3,
+  "last_layer.no": 68,
+  "last_layer.reg_max": 16,
+  "last_layer.embed": 512,
+  "last_layer.is_fused": true,
+  "names": {
+    "0": "ship",
+    "1": "harbor",
+    "2": "tank",
+    "3": "bridge"
+  },
+  "pe_shape": [
+    1,
+    4,
+    512
+  ],
+  "score_channels_seen": [
+    4
+  ],
+  "total_params": 11791644,
+  "head_params": 2772092
+}
+
+[EXPANDED CHECKPOINT SHIP EVAL]
+RGB: AP50=0.950989 P=0.890830 R=0.962264
+SAR: AP50=0.897227 P=0.826087 R=0.917241
+IR: AP50=0.915542 P=0.877437 R=0.934718
+ALL: AP50=0.921346 P=0.870494 R=0.939481
+
+[SUMMARY] C:\Users\DOCTOR\Documents\GitHub\YOLOv8\runs\probe\yoloeseg_global4_ship_preserve_summary.json
