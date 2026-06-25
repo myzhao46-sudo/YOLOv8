@@ -1,0 +1,632 @@
+{
+  "time": "2026-06-21T21:54:47.823442",
+  "git_commit": "333b8db8c45b87b8b9278ccb7616c9c58dd73443",
+  "ultralytics_imported_from": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\ultralytics\\__init__.py",
+  "settings": {
+    "init": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\runs\\probe\\yoloeseg_global4_expanded_init\\weights\\global4_expanded_bestpt.pt",
+    "epochs": 1,
+    "imgsz": 640,
+    "batch": 4,
+    "device": "cuda:0",
+    "lr": 0.001,
+    "conf": 0.25,
+    "pred_iou": 0.7,
+    "match_iou": 0.5,
+    "max_det": 300,
+    "seed": 0,
+    "summary": "runs/train/yoloeseg_global4_boxonly_smoke_summary.json"
+  },
+  "native_segmentation_trainer_called": false,
+  "native_val_called": false,
+  "masks_used": false,
+  "strategy": "bridge_row_only",
+  "training": {
+    "completed": true,
+    "epochs": 1,
+    "batch": 4,
+    "imgsz": 640,
+    "device": "cuda:0",
+    "lr": 0.001,
+    "weight_decay": 0.0,
+    "history": [
+      {
+        "epoch": 1,
+        "loss_total": 8.846414156449146,
+        "loss_box": 0.34967067656226647,
+        "loss_cls": 0.8994129365071272,
+        "loss_dfl": 0.9625199261384133,
+        "trainable_grad_norm_max": 6.912825384918188,
+        "batches_with_nonzero_bridge_grad": 78,
+        "batches": 78,
+        "old_rows_unchanged": true,
+        "unrelated_params_unchanged": true,
+        "changed_unrelated_examples": []
+      }
+    ],
+    "parameter_config": {
+      "trainable_parameter_names": [
+        "model.22.cv3.0.2.weight",
+        "model.22.cv3.0.2.bias",
+        "model.22.cv3.1.2.weight",
+        "model.22.cv3.1.2.bias",
+        "model.22.cv3.2.2.weight",
+        "model.22.cv3.2.2.bias"
+      ],
+      "trainable_parameter_tensors": 6,
+      "trainable_scalar_params": 1548,
+      "bn_frozen": true,
+      "frozen_parameter_scalar_count": 11790096
+    },
+    "optimizer": "AdamW",
+    "loss_gains": {
+      "box": 7.5,
+      "cls": 0.5,
+      "dfl": 1.5
+    },
+    "old_rows_unchanged_after_training": true,
+    "unrelated_params_unchanged_after_training": true,
+    "changed_unrelated_examples": [],
+    "loss_terms": {
+      "box_loss_computed": true,
+      "cls_loss_computed": true,
+      "dfl_loss_computed": true,
+      "box_loss_updates_trainable_parameters": false,
+      "dfl_loss_updates_trainable_parameters": false,
+      "cls_loss_updates_bridge_rows": true
+    }
+  },
+  "dataset_creation": {
+    "source_local2_dataset": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\bridge_ship_distill_2cls",
+    "global4_dataset": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\bridge_ship_distill_global4",
+    "splits": {
+      "train": {
+        "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\bridge_ship_distill_global4\\images\\train",
+        "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\bridge_ship_distill_global4\\labels\\train",
+        "image_count": 312,
+        "missing_source_label_files": 0,
+        "label_rows": 565,
+        "class_histogram": {
+          "3": 88,
+          "0": 477
+        }
+      },
+      "val": {
+        "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\bridge_ship_distill_global4\\images\\val",
+        "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\bridge_ship_distill_global4\\labels\\val",
+        "image_count": 18,
+        "missing_source_label_files": 0,
+        "label_rows": 25,
+        "class_histogram": {
+          "3": 25
+        }
+      }
+    },
+    "class_histogram": {
+      "3": 113,
+      "0": 477
+    },
+    "bad_rows": 0,
+    "label_rows": 590,
+    "source_digest_before": "745a53303e05466f9096f55829b923d2f5ad947b2ce4e1bb9e691a06343f4b58",
+    "data_yaml": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\bridge_ship_distill_global4\\data.yaml",
+    "source_digest_after": "745a53303e05466f9096f55829b923d2f5ad947b2ce4e1bb9e691a06343f4b58",
+    "source_local2_modified": false
+  },
+  "training_data_check": {
+    "root": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\bridge_ship_distill_global4",
+    "splits": {
+      "train": {
+        "images": 312,
+        "label_rows": 565,
+        "missing_label_files": 0,
+        "bad_rows": 0,
+        "class_histogram": {
+          "3": 88,
+          "0": 477
+        }
+      },
+      "val": {
+        "images": 18,
+        "label_rows": 25,
+        "missing_label_files": 0,
+        "bad_rows": 0,
+        "class_histogram": {
+          "3": 25
+        }
+      }
+    },
+    "class_histogram": {
+      "3": 113,
+      "0": 477
+    },
+    "label_rows": 590,
+    "bad_rows": 0,
+    "yaml": {
+      "nc": 4,
+      "names": [
+        "ship",
+        "harbor",
+        "tank",
+        "bridge"
+      ]
+    },
+    "only_allowed_classes": true
+  },
+  "ship_external": {
+    "root": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap",
+    "modalities": {
+      "RGB": {
+        "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\images\\extratest_rgb",
+        "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\labels\\extratest_rgb",
+        "image_count": 100,
+        "missing_label_files": 0,
+        "label_rows": 212,
+        "bad_rows": 0,
+        "class_histogram": {
+          "0": 212
+        }
+      },
+      "SAR": {
+        "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\images\\extratest_sar",
+        "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\labels\\extratest_sar",
+        "image_count": 100,
+        "missing_label_files": 0,
+        "label_rows": 145,
+        "bad_rows": 0,
+        "class_histogram": {
+          "0": 145
+        }
+      },
+      "IR": {
+        "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\images\\extratest_ir",
+        "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_extratest_no_overlap\\labels\\extratest_ir",
+        "image_count": 100,
+        "missing_label_files": 0,
+        "label_rows": 337,
+        "bad_rows": 0,
+        "class_histogram": {
+          "0": 337
+        }
+      }
+    },
+    "class_histogram": {
+      "0": 694
+    },
+    "label_rows": 694,
+    "bad_rows": 0,
+    "only_expected_class": true
+  },
+  "bridge_external": {
+    "root": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\extracttest_bridge",
+    "modalities": {
+      "RGB": {
+        "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\extracttest_bridge\\images\\extratest_rgb",
+        "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\extracttest_bridge\\labels\\extratest_rgb",
+        "image_count": 100,
+        "missing_label_files": 0,
+        "label_rows": 204,
+        "bad_rows": 0,
+        "class_histogram": {
+          "1": 204
+        }
+      },
+      "SAR": {
+        "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\extracttest_bridge\\images\\extratest_sar",
+        "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\extracttest_bridge\\labels\\extratest_sar",
+        "image_count": 100,
+        "missing_label_files": 0,
+        "label_rows": 121,
+        "bad_rows": 0,
+        "class_histogram": {
+          "1": 121
+        }
+      },
+      "IR": {
+        "images_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\extracttest_bridge\\images\\extratest_ir",
+        "labels_dir": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\extracttest_bridge\\labels\\extratest_ir",
+        "image_count": 100,
+        "missing_label_files": 0,
+        "label_rows": 106,
+        "bad_rows": 0,
+        "class_histogram": {
+          "1": 106
+        }
+      }
+    },
+    "class_histogram": {
+      "1": 431
+    },
+    "label_rows": 431,
+    "bad_rows": 0,
+    "only_expected_class": true
+  },
+  "leakage_check": {
+    "train_image_count": 312,
+    "val_image_count": 18,
+    "external_ship_image_count": 300,
+    "external_bridge_image_count": 300,
+    "train_val_vs_ship": {
+      "hash_overlap_count": 0,
+      "stem_overlap_count": 0,
+      "hash_overlap_examples": [],
+      "stem_overlap_examples": []
+    },
+    "train_val_vs_bridge": {
+      "hash_overlap_count": 0,
+      "stem_overlap_count": 0,
+      "hash_overlap_examples": [],
+      "stem_overlap_examples": []
+    },
+    "leakage_detected": false,
+    "possible_name_overlap": false
+  },
+  "pre_train_probe": {
+    "wrapper_type": "ultralytics.models.yolo.model.YOLOE",
+    "model_class": "ultralytics.nn.tasks.YOLOESegModel",
+    "task": {
+      "wrapper.task": "segment",
+      "inner.task": "segment",
+      "inner.args.task": "segment"
+    },
+    "head": "ultralytics.nn.modules.head.YOLOESegment",
+    "nc": 4,
+    "no": 68,
+    "is_fused": true,
+    "pe_shape": [
+      1,
+      4,
+      512
+    ],
+    "score_channels_seen": [
+      4
+    ],
+    "names": {
+      "0": "ship",
+      "1": "harbor",
+      "2": "tank",
+      "3": "bridge"
+    },
+    "total_params": 11791644,
+    "trainable_params": 0
+  },
+  "epoch0_ship_eval": {
+    "RGB": {
+      "gt_count": 212,
+      "prediction_count": 229,
+      "tp": 204,
+      "fp": 25,
+      "fn": 8,
+      "precision": 0.8908296943231441,
+      "recall": 0.9622641509433962,
+      "ap50": 0.9509885989423132,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 212,
+      "nms_boxes_all_classes": 229,
+      "score_channels_seen": [
+        4
+      ],
+      "pred_internal_class": 0,
+      "gt_class": 0
+    },
+    "SAR": {
+      "gt_count": 145,
+      "prediction_count": 161,
+      "tp": 133,
+      "fp": 28,
+      "fn": 12,
+      "precision": 0.8260869565217391,
+      "recall": 0.9172413793103448,
+      "ap50": 0.8972270074107946,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 145,
+      "nms_boxes_all_classes": 162,
+      "score_channels_seen": [
+        4
+      ],
+      "pred_internal_class": 0,
+      "gt_class": 0
+    },
+    "IR": {
+      "gt_count": 337,
+      "prediction_count": 359,
+      "tp": 315,
+      "fp": 44,
+      "fn": 22,
+      "precision": 0.8774373259052924,
+      "recall": 0.9347181008902077,
+      "ap50": 0.9155420013283813,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 337,
+      "nms_boxes_all_classes": 359,
+      "score_channels_seen": [
+        4
+      ],
+      "pred_internal_class": 0,
+      "gt_class": 0
+    },
+    "ALL": {
+      "gt_count": 694,
+      "prediction_count": 749,
+      "tp": 652,
+      "fp": 97,
+      "fn": 42,
+      "precision": 0.8704939919893191,
+      "recall": 0.9394812680115274,
+      "ap50": 0.9213457720649441,
+      "image_count": 300,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "score_channels_seen": [
+        4
+      ]
+    }
+  },
+  "checkpoints": {
+    "last": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\runs\\train\\yoloeseg_global4_boxonly_100ep_bridge_row_only\\weights\\last.pt",
+    "best": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\runs\\train\\yoloeseg_global4_boxonly_100ep_bridge_row_only\\weights\\best.pt",
+    "last_exists": true,
+    "best_exists": true
+  },
+  "post_train_probe": {
+    "wrapper_type": "ultralytics.models.yolo.model.YOLOE",
+    "model_class": "ultralytics.nn.tasks.YOLOESegModel",
+    "task": {
+      "wrapper.task": "segment",
+      "inner.task": "segment",
+      "inner.args.task": "segment"
+    },
+    "head": "ultralytics.nn.modules.head.YOLOESegment",
+    "nc": 4,
+    "no": 68,
+    "is_fused": true,
+    "pe_shape": [
+      1,
+      4,
+      512
+    ],
+    "score_channels_seen": [
+      4
+    ],
+    "names": {
+      "0": "ship",
+      "1": "harbor",
+      "2": "tank",
+      "3": "bridge"
+    },
+    "total_params": 11791644,
+    "trainable_params": 1548
+  },
+  "final_ship_eval": {
+    "RGB": {
+      "gt_count": 212,
+      "prediction_count": 229,
+      "tp": 204,
+      "fp": 25,
+      "fn": 8,
+      "precision": 0.8908296943231441,
+      "recall": 0.9622641509433962,
+      "ap50": 0.9509885989423132,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 212,
+      "nms_boxes_all_classes": 229,
+      "score_channels_seen": [
+        4
+      ],
+      "pred_internal_class": 0,
+      "gt_class": 0
+    },
+    "SAR": {
+      "gt_count": 145,
+      "prediction_count": 161,
+      "tp": 133,
+      "fp": 28,
+      "fn": 12,
+      "precision": 0.8260869565217391,
+      "recall": 0.9172413793103448,
+      "ap50": 0.8972270074107946,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 145,
+      "nms_boxes_all_classes": 162,
+      "score_channels_seen": [
+        4
+      ],
+      "pred_internal_class": 0,
+      "gt_class": 0
+    },
+    "IR": {
+      "gt_count": 337,
+      "prediction_count": 359,
+      "tp": 315,
+      "fp": 44,
+      "fn": 22,
+      "precision": 0.8774373259052924,
+      "recall": 0.9347181008902077,
+      "ap50": 0.9155420013283813,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 337,
+      "nms_boxes_all_classes": 359,
+      "score_channels_seen": [
+        4
+      ],
+      "pred_internal_class": 0,
+      "gt_class": 0
+    },
+    "ALL": {
+      "gt_count": 694,
+      "prediction_count": 749,
+      "tp": 652,
+      "fp": 97,
+      "fn": 42,
+      "precision": 0.8704939919893191,
+      "recall": 0.9394812680115274,
+      "ap50": 0.9213457720649441,
+      "image_count": 300,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "score_channels_seen": [
+        4
+      ]
+    }
+  },
+  "final_bridge_eval": {
+    "RGB": {
+      "gt_count": 204,
+      "prediction_count": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 204,
+      "precision": 0.0,
+      "recall": 0.0,
+      "ap50": 0.0,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 204,
+      "nms_boxes_all_classes": 160,
+      "score_channels_seen": [
+        4
+      ],
+      "pred_internal_class": 3,
+      "gt_class": 1
+    },
+    "SAR": {
+      "gt_count": 121,
+      "prediction_count": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 121,
+      "precision": 0.0,
+      "recall": 0.0,
+      "ap50": 0.0,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 121,
+      "nms_boxes_all_classes": 95,
+      "score_channels_seen": [
+        4
+      ],
+      "pred_internal_class": 3,
+      "gt_class": 1
+    },
+    "IR": {
+      "gt_count": 106,
+      "prediction_count": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 106,
+      "precision": 0.0,
+      "recall": 0.0,
+      "ap50": 0.0,
+      "image_count": 100,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "target_gt_boxes": 106,
+      "nms_boxes_all_classes": 85,
+      "score_channels_seen": [
+        4
+      ],
+      "pred_internal_class": 3,
+      "gt_class": 1
+    },
+    "ALL": {
+      "gt_count": 431,
+      "prediction_count": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 431,
+      "precision": 0.0,
+      "recall": 0.0,
+      "ap50": 0.0,
+      "image_count": 300,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "score_channels_seen": [
+        4
+      ]
+    }
+  },
+  "final_combined_eval": {
+    "definition": "macro AP50 over output classes 0 ship and 1 bridge; micro P/R from summed TP/FP/FN",
+    "all_ap50": 0.46067288603247203,
+    "precision_micro": 0.8704939919893191,
+    "recall_micro": 0.5795555555555556,
+    "tp": 652,
+    "fp": 97,
+    "fn": 473,
+    "ship": {
+      "gt_count": 694,
+      "prediction_count": 749,
+      "tp": 652,
+      "fp": 97,
+      "fn": 42,
+      "precision": 0.8704939919893191,
+      "recall": 0.9394812680115274,
+      "ap50": 0.9213457720649441,
+      "image_count": 300,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "score_channels_seen": [
+        4
+      ]
+    },
+    "bridge": {
+      "gt_count": 431,
+      "prediction_count": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 431,
+      "precision": 0.0,
+      "recall": 0.0,
+      "ap50": 0.0,
+      "image_count": 300,
+      "missing_label_files": 0,
+      "bad_label_rows": 0,
+      "non_target_rows": 0,
+      "score_channels_seen": [
+        4
+      ]
+    },
+    "class_mapping": {
+      "internal_0": "output_0_ship",
+      "internal_3": "output_1_bridge"
+    }
+  },
+  "conclusion": {
+    "epoch0_ship_ap50": 0.9213457720649441,
+    "final_ship_ap50": 0.9213457720649441,
+    "ship_ap50_change": 0.0,
+    "final_bridge_ap50": 0.0,
+    "ship_preserved_strict": true,
+    "ship_preserved_loose": true,
+    "bridge_has_ap": false,
+    "leakage_detected": false,
+    "formal_result_valid": true
+  },
+  "finished_at": "2026-06-21T21:55:41.172499"
+}
