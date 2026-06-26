@@ -1,12 +1,14 @@
+path: ultralytics/datasets/total_bridge
+
 train:
-  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge/images/train_rgb
-  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge/images/train_sar
-  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge/images/train_ir
+  - images/train_rgb
+  - images/train_sar
+  - images/train_ir
 
 val:
-  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge/images/train_rgb
-  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge/images/train_sar
-  - C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge/images/train_ir
+  - images/train_rgb
+  - images/train_sar
+  - images/train_ir
 
 nc: 1
 names:

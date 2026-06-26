@@ -1,4 +1,4 @@
-path: C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval
+path: ultralytics/datasets/total_bridge_trainval
 
 train:
   - images/train_rgb

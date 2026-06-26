@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import sys
-sys.path.insert(0, r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics")
-sys.path.insert(1, r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8")
-
 import argparse
 import json
 from pathlib import Path
@@ -11,10 +8,18 @@ from pathlib import Path
 from PIL import Image
 
 
-REPO_ROOT = Path(r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8")
-DEFAULT_RUN = REPO_ROOT / "runs" / "bridge_expert" / "yolov8m_total_bridge_split_img1024_ep150"
-DEFAULT_TEST = REPO_ROOT / "ultralytics" / "datasets" / "total_bridge_test"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT / "ultralytics"))
+sys.path.insert(1, str(PROJECT_ROOT))
+
+DEFAULT_RUN = Path("runs/bridge_expert/yolov8m_total_bridge_split_img1024_ep150")
+DEFAULT_TEST = Path("ultralytics/datasets/total_bridge_test")
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
+
+
+def resolve_path(path: str | Path) -> Path:
+    path = Path(path)
+    return path if path.is_absolute() else PROJECT_ROOT / path
 
 
 def list_images(root: Path) -> list[Path]:
@@ -44,8 +49,9 @@ def main() -> int:
 
     images = []
     for root in args.image_roots:
-        images.extend(list_images(Path(root)))
-    model = YOLO(args.weights)
+        images.extend(list_images(resolve_path(root)))
+    weights = resolve_path(args.weights)
+    model = YOLO(str(weights))
     output = []
     for result in model.predict(
         source=[str(p) for p in images],
@@ -70,14 +76,30 @@ def main() -> int:
                         "conf": float(box.conf.item()),
                         "class": "bridge",
                         "class_id": 0,
-                        "source_model": Path(args.weights).parents[1].name,
+                        "source_model": weights.parents[1].name,
                     }
                 )
         output.append({"image": str(image_path), "width": width, "height": height, "boxes": boxes})
-    out = Path(args.out)
+    out = resolve_path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"out": str(out), "images": len(output), "boxes": sum(len(x["boxes"]) for x in output)}, ensure_ascii=False, indent=2), flush=True)
+    print(
+        json.dumps(
+            {
+                "weights_input": args.weights,
+                "weights": str(weights.resolve()),
+                "image_roots_input": args.image_roots,
+                "image_roots": [str(resolve_path(p).resolve()) for p in args.image_roots],
+                "out_input": args.out,
+                "out": str(out.resolve()),
+                "images": len(output),
+                "boxes": sum(len(x["boxes"]) for x in output),
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        flush=True,
+    )
     return 0
 
 

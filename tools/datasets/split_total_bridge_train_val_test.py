@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import sys
-sys.path.insert(0, r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics")
-sys.path.insert(1, r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8")
-
 import argparse
 import csv
 import hashlib
@@ -13,17 +10,32 @@ import shutil
 from pathlib import Path
 
 
-REPO_ROOT = Path(r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8")
-DEFAULT_SRC = REPO_ROOT / "ultralytics" / "datasets" / "total_bridge"
-DEFAULT_TRAINVAL = REPO_ROOT / "ultralytics" / "datasets" / "total_bridge_trainval"
-DEFAULT_TEST = REPO_ROOT / "ultralytics" / "datasets" / "total_bridge_test"
-DEFAULT_CONFIGS = REPO_ROOT / "configs" / "datasets"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT / "ultralytics"))
+sys.path.insert(1, str(PROJECT_ROOT))
+
+DEFAULT_SRC = "ultralytics/datasets/total_bridge"
+DEFAULT_TRAINVAL = "ultralytics/datasets/total_bridge_trainval"
+DEFAULT_TEST = "ultralytics/datasets/total_bridge_test"
+DEFAULT_CONFIGS = "configs/datasets"
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 MODALITIES = ("rgb", "sar", "ir")
 
 
 def log(msg: object = "") -> None:
     print(msg, flush=True)
+
+
+def resolve_path(path: str | Path) -> Path:
+    path = Path(path)
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def project_rel(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(PROJECT_ROOT.resolve()).as_posix()
+    except ValueError:
+        return path.resolve().as_posix()
 
 
 def norm(path: Path) -> str:
@@ -129,7 +141,7 @@ def split_records(records: dict[str, list[dict]], train_ratio: float, val_ratio:
 def safe_recreate(path: Path) -> None:
     resolved = path.resolve()
     if path.exists():
-        datasets_root = (REPO_ROOT / "ultralytics" / "datasets").resolve()
+        datasets_root = (PROJECT_ROOT / "ultralytics" / "datasets").resolve()
         if resolved.parent != datasets_root:
             raise RuntimeError(f"Refusing to remove unexpected path: {resolved}")
         shutil.rmtree(resolved)
@@ -201,7 +213,7 @@ def overlap(a: list[dict], b: list[dict], key: str) -> dict:
 
 
 def write_yamls(trainval_root: Path, test_root: Path, configs_dir: Path) -> dict:
-    trainval_text = f"""path: {norm(trainval_root)}
+    trainval_config_text = f"""path: {project_rel(trainval_root)}
 
 train:
   - images/train_rgb
@@ -218,7 +230,7 @@ nc: 1
 names:
   0: bridge
 """
-    test_text = f"""path: {norm(test_root)}
+    test_config_text = f"""path: {project_rel(test_root)}
 
 val:
   - images/test_rgb
@@ -235,15 +247,17 @@ nc: 1
 names:
   0: bridge
 """
+    trainval_data_text = trainval_config_text.replace(f"path: {project_rel(trainval_root)}", "path: .", 1)
+    test_data_text = test_config_text.replace(f"path: {project_rel(test_root)}", "path: .", 1)
     trainval_yaml = trainval_root / "data.yaml"
     test_yaml = test_root / "data.yaml"
     config_trainval = configs_dir / "total_bridge_trainval.yaml"
     config_test = configs_dir / "total_bridge_test.yaml"
     configs_dir.mkdir(parents=True, exist_ok=True)
-    trainval_yaml.write_text(trainval_text, encoding="utf-8")
-    test_yaml.write_text(test_text, encoding="utf-8")
-    config_trainval.write_text(trainval_text, encoding="utf-8")
-    config_test.write_text(test_text, encoding="utf-8")
+    trainval_yaml.write_text(trainval_data_text, encoding="utf-8")
+    test_yaml.write_text(test_data_text, encoding="utf-8")
+    config_trainval.write_text(trainval_config_text, encoding="utf-8")
+    config_test.write_text(test_config_text, encoding="utf-8")
     return {
         "trainval_yaml": str(trainval_yaml),
         "test_yaml": str(test_yaml),
@@ -262,21 +276,21 @@ def summarize_rows(rows: list[dict]) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--src-root", default=str(DEFAULT_SRC))
-    parser.add_argument("--trainval-root", default=str(DEFAULT_TRAINVAL))
-    parser.add_argument("--test-root", default=str(DEFAULT_TEST))
+    parser.add_argument("--src-root", default=DEFAULT_SRC)
+    parser.add_argument("--trainval-root", default=DEFAULT_TRAINVAL)
+    parser.add_argument("--test-root", default=DEFAULT_TEST)
     parser.add_argument("--train-ratio", type=float, default=0.70)
     parser.add_argument("--val-ratio", type=float, default=0.15)
     parser.add_argument("--test-ratio", type=float, default=0.15)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--configs-dir", default=str(DEFAULT_CONFIGS))
+    parser.add_argument("--configs-dir", default=DEFAULT_CONFIGS)
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
-    src_root = Path(args.src_root)
-    trainval_root = Path(args.trainval_root)
-    test_root = Path(args.test_root)
-    configs_dir = Path(args.configs_dir)
+    src_root = resolve_path(args.src_root)
+    trainval_root = resolve_path(args.trainval_root)
+    test_root = resolve_path(args.test_root)
+    configs_dir = resolve_path(args.configs_dir)
 
     records, source_summary = collect_records(src_root)
     splits, per_modality = split_records(records, args.train_ratio, args.val_ratio, args.test_ratio, args.seed)
@@ -295,8 +309,11 @@ def main() -> int:
     val_rows = [x for x in trainval_rows if x["split"] == "val"]
     summary = {
         "source_root": str(src_root),
+        "source_root_input": args.src_root,
         "trainval_root": str(trainval_root),
+        "trainval_root_input": args.trainval_root,
         "test_root": str(test_root),
+        "test_root_input": args.test_root,
         "seed": args.seed,
         "split_ratios": {"train": args.train_ratio, "val": args.val_ratio, "test": args.test_ratio},
         "source_summary": source_summary,

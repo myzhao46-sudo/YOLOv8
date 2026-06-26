@@ -1,22 +1,52 @@
 from __future__ import annotations
 
 import sys
-sys.path.insert(0, r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics")
-sys.path.insert(1, r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8")
-
 import argparse
 import json
 from datetime import datetime
 from pathlib import Path
 
 
-REPO_ROOT = Path(r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8")
-DEFAULT_PROJECT = REPO_ROOT / "runs" / "bridge_expert"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT / "ultralytics"))
+sys.path.insert(1, str(PROJECT_ROOT))
+
+DEFAULT_PROJECT = "runs/bridge_expert"
 DEFAULT_NAME = "yolov8m_total_bridge_split_img1024_ep150"
-DEFAULT_DATA = REPO_ROOT / "configs" / "datasets" / "total_bridge_trainval.yaml"
-DEFAULT_TRAINVAL = REPO_ROOT / "ultralytics" / "datasets" / "total_bridge_trainval"
-DEFAULT_TEST = REPO_ROOT / "ultralytics" / "datasets" / "total_bridge_test"
-DEFAULT_SPLIT_CHECK = REPO_ROOT / "runs" / "bridge_expert" / "split_check" / "total_bridge_split_check.json"
+DEFAULT_DATA = "configs/datasets/total_bridge_trainval.yaml"
+DEFAULT_TRAINVAL = "ultralytics/datasets/total_bridge_trainval"
+DEFAULT_TEST = "ultralytics/datasets/total_bridge_test"
+DEFAULT_SPLIT_CHECK = "runs/bridge_expert/split_check/total_bridge_split_check.json"
+
+
+def resolve_path(path: str | Path) -> Path:
+    path = Path(path)
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def project_rel(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(PROJECT_ROOT.resolve()).as_posix()
+    except ValueError:
+        return path.resolve().as_posix()
+
+
+def make_runtime_data_yaml(data_yaml: Path, project_dir: Path) -> Path:
+    try:
+        import yaml
+
+        data = yaml.safe_load(data_yaml.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError(f"Dataset YAML is not a mapping: {data_yaml}")
+        source_path = Path(data.get("path", ""))
+        data["path"] = str(resolve_path(source_path).resolve()) if source_path else str(data_yaml.parent.resolve())
+        project_dir.mkdir(parents=True, exist_ok=True)
+        runtime_yaml = project_dir / "runtime_total_bridge_trainval.yaml"
+        runtime_yaml.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        return runtime_yaml
+    except Exception:
+        # Fallback keeps the user-provided path if PyYAML is unavailable or malformed.
+        return data_yaml
 
 
 def write_md(path: Path, summary: dict) -> None:
@@ -45,13 +75,13 @@ def write_md(path: Path, summary: dict) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Train ordinary YOLOv8 bridge-only expert on total_bridge_trainval.")
     parser.add_argument("--model", default="yolov8m.pt")
-    parser.add_argument("--data", default=str(DEFAULT_DATA))
+    parser.add_argument("--data", default=DEFAULT_DATA)
     parser.add_argument("--imgsz", type=int, default=1024)
     parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--batch", type=int, default=8)
     parser.add_argument("--device", default="0")
     parser.add_argument("--workers", type=int, default=4)
-    parser.add_argument("--project", default=str(DEFAULT_PROJECT))
+    parser.add_argument("--project", default=DEFAULT_PROJECT)
     parser.add_argument("--name", default=DEFAULT_NAME)
     parser.add_argument("--patience", type=int, default=40)
     parser.add_argument("--close-mosaic", type=int, default=20)
@@ -62,35 +92,46 @@ def main() -> int:
     from ultralytics import YOLO
 
     start = datetime.now().isoformat()
-    run_dir = Path(args.project) / args.name
+    data_yaml = resolve_path(args.data)
+    project = resolve_path(args.project)
+    run_dir = project / args.name
+    runtime_data_yaml = make_runtime_data_yaml(data_yaml, project)
+    trainval_root = resolve_path(DEFAULT_TRAINVAL)
+    test_root = resolve_path(DEFAULT_TEST)
+    split_check = resolve_path(DEFAULT_SPLIT_CHECK)
     summary = {
         "purpose": "Bridge-only expert training for late fusion. This is not YOLOE and not a 2-class student.",
         "model_base": args.model,
-        "data_yaml": str(Path(args.data).resolve()),
-        "trainval_root": str(DEFAULT_TRAINVAL),
-        "test_root": str(DEFAULT_TEST),
+        "data_yaml_input": args.data,
+        "data_yaml": str(data_yaml.resolve()),
+        "runtime_data_yaml": str(runtime_data_yaml.resolve()),
+        "trainval_root_input": DEFAULT_TRAINVAL,
+        "trainval_root": str(trainval_root.resolve()),
+        "test_root_input": DEFAULT_TEST,
+        "test_root": str(test_root.resolve()),
         "imgsz": args.imgsz,
         "epochs": args.epochs,
         "batch": args.batch,
         "device": args.device,
         "workers": args.workers,
         "seed": args.seed,
-        "project": str(Path(args.project).resolve()),
+        "project_input": args.project,
+        "project": str(project.resolve()),
         "name": args.name,
         "start_time": start,
-        "split_summary_path": str(DEFAULT_TRAINVAL / "split_summary.json"),
-        "split_check_path": str(DEFAULT_SPLIT_CHECK),
+        "split_summary_path": str(trainval_root / "split_summary.json"),
+        "split_check_path": str(split_check),
     }
     try:
         model = YOLO(args.model)
         results = model.train(
-            data=args.data,
+            data=str(runtime_data_yaml),
             imgsz=args.imgsz,
             epochs=args.epochs,
             batch=args.batch,
             device=args.device,
             workers=args.workers,
-            project=args.project,
+            project=str(project),
             name=args.name,
             patience=args.patience,
             close_mosaic=args.close_mosaic,

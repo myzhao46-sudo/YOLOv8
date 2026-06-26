@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import sys
-sys.path.insert(0, r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics")
-sys.path.insert(1, r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8")
-
 import argparse
 import json
 from pathlib import Path
@@ -12,11 +9,19 @@ import numpy as np
 from PIL import Image
 
 
-REPO_ROOT = Path(r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8")
-DEFAULT_RUN = REPO_ROOT / "runs" / "bridge_expert" / "yolov8m_total_bridge_split_img1024_ep150"
-DEFAULT_TEST = REPO_ROOT / "ultralytics" / "datasets" / "total_bridge_test"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT / "ultralytics"))
+sys.path.insert(1, str(PROJECT_ROOT))
+
+DEFAULT_RUN = Path("runs/bridge_expert/yolov8m_total_bridge_split_img1024_ep150")
+DEFAULT_TEST = "ultralytics/datasets/total_bridge_test"
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 MODALITIES = ("rgb", "sar", "ir")
+
+
+def resolve_path(path: str | Path) -> Path:
+    path = Path(path)
+    return path if path.is_absolute() else PROJECT_ROOT / path
 
 
 def list_images(path: Path) -> list[Path]:
@@ -163,7 +168,7 @@ def write_md(path: Path, summary: dict) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--weights", default=str(DEFAULT_RUN / "weights" / "best.pt"))
-    parser.add_argument("--test-root", default=str(DEFAULT_TEST))
+    parser.add_argument("--test-root", default=DEFAULT_TEST)
     parser.add_argument("--imgsz", type=int, default=1024)
     parser.add_argument("--conf-list", nargs="+", type=float, default=[0.05, 0.10, 0.20, 0.25, 0.35, 0.50])
     parser.add_argument("--iou", type=float, default=0.7)
@@ -173,8 +178,9 @@ def main() -> int:
 
     from ultralytics import YOLO
 
-    test_root = Path(args.test_root)
-    out_dir = Path(args.out_dir)
+    weights = resolve_path(args.weights)
+    test_root = resolve_path(args.test_root)
+    out_dir = resolve_path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     groups = {m.upper(): list_images(test_root / "images" / f"test_{m}") for m in MODALITIES}
     gt_groups = {}
@@ -182,11 +188,15 @@ def main() -> int:
         label_dir = test_root / "labels" / f"test_{name.lower()}"
         gt_groups[name] = {str(img.resolve()): read_gt(label_dir / f"{img.stem}.txt", img) for img in imgs}
 
-    model = YOLO(args.weights)
+    model = YOLO(str(weights))
     summary = {
         "note": "This is total_bridge internal hold-out test. It was not used for training. Not an external bridge generalization conclusion.",
-        "weights": str(Path(args.weights).resolve()),
+        "weights_input": args.weights,
+        "weights": str(weights.resolve()),
+        "test_root_input": args.test_root,
         "test_root": str(test_root.resolve()),
+        "out_dir_input": args.out_dir,
+        "out_dir": str(out_dir.resolve()),
         "imgsz": args.imgsz,
         "nms_iou": args.iou,
         "conf_results": {},

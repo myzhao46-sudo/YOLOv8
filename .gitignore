@@ -1,1 +1,7 @@
 mobileclip_blt.ts
+
+# Model weights and exported artifacts
+*.pt
+*.pth
+*.onnx
+*.engine

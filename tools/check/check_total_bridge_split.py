@@ -1,25 +1,30 @@
 from __future__ import annotations
 
 import sys
-sys.path.insert(0, r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics")
-sys.path.insert(1, r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8")
-
 import argparse
 import hashlib
 import json
 from pathlib import Path
 
 
-REPO_ROOT = Path(r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8")
-DEFAULT_TRAINVAL = REPO_ROOT / "ultralytics" / "datasets" / "total_bridge_trainval"
-DEFAULT_TEST = REPO_ROOT / "ultralytics" / "datasets" / "total_bridge_test"
-DEFAULT_OUT = REPO_ROOT / "runs" / "bridge_expert" / "split_check"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT / "ultralytics"))
+sys.path.insert(1, str(PROJECT_ROOT))
+
+DEFAULT_TRAINVAL = "ultralytics/datasets/total_bridge_trainval"
+DEFAULT_TEST = "ultralytics/datasets/total_bridge_test"
+DEFAULT_OUT = "runs/bridge_expert/split_check"
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 SPLITS = {
     "train": ("train_rgb", "train_sar", "train_ir"),
     "val": ("val_rgb", "val_sar", "val_ir"),
     "test": ("test_rgb", "test_sar", "test_ir"),
 }
+
+
+def resolve_path(path: str | Path) -> Path:
+    path = Path(path)
+    return path if path.is_absolute() else PROJECT_ROOT / path
 
 
 def sha256(path: Path) -> str:
@@ -127,22 +132,26 @@ def write_md(path: Path, summary: dict) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--trainval-root", default=str(DEFAULT_TRAINVAL))
-    parser.add_argument("--test-root", default=str(DEFAULT_TEST))
-    parser.add_argument("--out-dir", default=str(DEFAULT_OUT))
+    parser.add_argument("--trainval-root", default=DEFAULT_TRAINVAL)
+    parser.add_argument("--test-root", default=DEFAULT_TEST)
+    parser.add_argument("--out-dir", default=DEFAULT_OUT)
     args = parser.parse_args()
 
-    trainval = Path(args.trainval_root)
-    test = Path(args.test_root)
-    out_dir = Path(args.out_dir)
+    trainval = resolve_path(args.trainval_root)
+    test = resolve_path(args.test_root)
+    out_dir = resolve_path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     train_records, train_stats = scan_split(trainval, "train", SPLITS["train"])
     val_records, val_stats = scan_split(trainval, "val", SPLITS["val"])
     test_records, test_stats = scan_split(test, "test", SPLITS["test"])
     summary = {
+        "trainval_root_input": args.trainval_root,
         "trainval_root": str(trainval),
+        "test_root_input": args.test_root,
         "test_root": str(test),
+        "out_dir_input": args.out_dir,
+        "out_dir": str(out_dir),
         "splits": {"train": train_stats, "val": val_stats, "test": test_stats},
         "hash_overlap": {
             "train_val": overlap(train_records, val_records, "sha256"),
