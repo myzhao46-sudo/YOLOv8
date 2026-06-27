@@ -139,8 +139,10 @@ def collect_predictions(
             verbose=False,
             stream=True,
         )
-        for result in results:
-            image_key = str(Path(result.path).resolve())
+        for source_path, result in zip(chunk, results):
+            # List sources are converted to PIL images internally, and EXIF transpose drops PIL.filename.
+            # Keep the original chunk path so predictions match the absolute-path GT dictionary keys.
+            image_key = str(source_path.resolve())
             if result.boxes is None:
                 continue
             for box in result.boxes:
