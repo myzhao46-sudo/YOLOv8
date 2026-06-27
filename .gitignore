@@ -5,3 +5,6 @@ mobileclip_blt.ts
 *.pth
 *.onnx
 *.engine
+
+# Training and evaluation outputs
+/runs/

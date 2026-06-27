@@ -1,7 +1,0 @@
-path: C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\datasets\bridge_ship_distill_2cls
-train: C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\datasets\bridge_ship_distill_2cls\images\train
-val: C:\Users\DOCTOR\Documents\GitHub\YOLOv8\ultralytics\datasets\bridge_ship_distill_2cls\images\val
-nc: 2
-names:
-  0: ship
-  1: bridge
