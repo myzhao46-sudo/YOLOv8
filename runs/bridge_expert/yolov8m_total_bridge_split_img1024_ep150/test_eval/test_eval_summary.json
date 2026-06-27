@@ -1,0 +1,266 @@
+{
+  "note": "This is total_bridge internal hold-out test. It was not used for training. Not an external bridge generalization conclusion.",
+  "weights_input": "/root/autodl-tmp/YOLOv8/runs/bridge_expert/yolov8m_total_bridge_split_img1024_ep150/weights/best.pt",
+  "weights": "/root/autodl-tmp/YOLOv8/runs/bridge_expert/yolov8m_total_bridge_split_img1024_ep150/weights/best.pt",
+  "test_root_input": "/root/autodl-tmp/YOLOv8/ultralytics/datasets/total_bridge_test",
+  "test_root": "/root/autodl-tmp/YOLOv8/ultralytics/datasets/total_bridge_test",
+  "out_dir_input": "/root/autodl-tmp/YOLOv8/runs/bridge_expert/yolov8m_total_bridge_split_img1024_ep150/test_eval",
+  "out_dir": "/root/autodl-tmp/YOLOv8/runs/bridge_expert/yolov8m_total_bridge_split_img1024_ep150/test_eval",
+  "imgsz": 1024,
+  "batch": 4,
+  "nms_iou": 0.7,
+  "conf_results": {
+    "0.05": {
+      "RGB": {
+        "gt": 411,
+        "pred": 582,
+        "tp": 278,
+        "fp": 304,
+        "fn": 133,
+        "precision": 0.47766323024054985,
+        "recall": 0.6763990267639902,
+        "ap50": 0.6110470886226077
+      },
+      "SAR": {
+        "gt": 281,
+        "pred": 395,
+        "tp": 270,
+        "fp": 125,
+        "fn": 11,
+        "precision": 0.6835443037974683,
+        "recall": 0.9608540925266904,
+        "ap50": 0.9415861720868293
+      },
+      "IR": {
+        "gt": 106,
+        "pred": 153,
+        "tp": 98,
+        "fp": 55,
+        "fn": 8,
+        "precision": 0.6405228758169934,
+        "recall": 0.9245283018867925,
+        "ap50": 0.8818257962013281
+      },
+      "ALL": {
+        "gt": 798,
+        "pred": 1130,
+        "tp": 646,
+        "fp": 484,
+        "fn": 152,
+        "precision": 0.5716814159292035,
+        "recall": 0.8095238095238095,
+        "ap50": 0.7674653327294958
+      }
+    },
+    "0.10": {
+      "RGB": {
+        "gt": 411,
+        "pred": 484,
+        "tp": 270,
+        "fp": 214,
+        "fn": 141,
+        "precision": 0.5578512396694215,
+        "recall": 0.656934306569343,
+        "ap50": 0.600679692458631
+      },
+      "SAR": {
+        "gt": 281,
+        "pred": 342,
+        "tp": 270,
+        "fp": 72,
+        "fn": 11,
+        "precision": 0.7894736842105263,
+        "recall": 0.9608540925266904,
+        "ap50": 0.9415861720868293
+      },
+      "IR": {
+        "gt": 106,
+        "pred": 133,
+        "tp": 98,
+        "fp": 35,
+        "fn": 8,
+        "precision": 0.7368421052631579,
+        "recall": 0.9245283018867925,
+        "ap50": 0.8818257962013281
+      },
+      "ALL": {
+        "gt": 798,
+        "pred": 959,
+        "tp": 638,
+        "fp": 321,
+        "fn": 160,
+        "precision": 0.6652763295099061,
+        "recall": 0.7994987468671679,
+        "ap50": 0.7610904918621155
+      }
+    },
+    "0.20": {
+      "RGB": {
+        "gt": 411,
+        "pred": 418,
+        "tp": 260,
+        "fp": 158,
+        "fn": 151,
+        "precision": 0.6220095693779905,
+        "recall": 0.6326034063260341,
+        "ap50": 0.5862235727789914
+      },
+      "SAR": {
+        "gt": 281,
+        "pred": 313,
+        "tp": 270,
+        "fp": 43,
+        "fn": 11,
+        "precision": 0.8626198083067093,
+        "recall": 0.9608540925266904,
+        "ap50": 0.9415861720868293
+      },
+      "IR": {
+        "gt": 106,
+        "pred": 121,
+        "tp": 96,
+        "fp": 25,
+        "fn": 10,
+        "precision": 0.7933884297520661,
+        "recall": 0.9056603773584906,
+        "ap50": 0.86738005267779
+      },
+      "ALL": {
+        "gt": 798,
+        "pred": 852,
+        "tp": 626,
+        "fp": 226,
+        "fn": 172,
+        "precision": 0.7347417840375586,
+        "recall": 0.7844611528822055,
+        "ap50": 0.7505177482486178
+      }
+    },
+    "0.25": {
+      "RGB": {
+        "gt": 411,
+        "pred": 391,
+        "tp": 255,
+        "fp": 136,
+        "fn": 156,
+        "precision": 0.6521739130434783,
+        "recall": 0.6204379562043796,
+        "ap50": 0.5785332605751746
+      },
+      "SAR": {
+        "gt": 281,
+        "pred": 305,
+        "tp": 268,
+        "fp": 37,
+        "fn": 13,
+        "precision": 0.8786885245901639,
+        "recall": 0.9537366548042705,
+        "ap50": 0.9353681822395004
+      },
+      "IR": {
+        "gt": 106,
+        "pred": 118,
+        "tp": 96,
+        "fp": 22,
+        "fn": 10,
+        "precision": 0.8135593220338984,
+        "recall": 0.9056603773584906,
+        "ap50": 0.86738005267779
+      },
+      "ALL": {
+        "gt": 798,
+        "pred": 814,
+        "tp": 619,
+        "fp": 195,
+        "fn": 179,
+        "precision": 0.7604422604422605,
+        "recall": 0.7756892230576441,
+        "ap50": 0.7439724231495493
+      }
+    },
+    "0.35": {
+      "RGB": {
+        "gt": 411,
+        "pred": 344,
+        "tp": 245,
+        "fp": 99,
+        "fn": 166,
+        "precision": 0.7122093023255814,
+        "recall": 0.5961070559610706,
+        "ap50": 0.5619885242345154
+      },
+      "SAR": {
+        "gt": 281,
+        "pred": 298,
+        "tp": 266,
+        "fp": 32,
+        "fn": 15,
+        "precision": 0.8926174496644296,
+        "recall": 0.9466192170818505,
+        "ap50": 0.9290845951000897
+      },
+      "IR": {
+        "gt": 106,
+        "pred": 113,
+        "tp": 95,
+        "fp": 18,
+        "fn": 11,
+        "precision": 0.8407079646017699,
+        "recall": 0.8962264150943396,
+        "ap50": 0.8595047263506235
+      },
+      "ALL": {
+        "gt": 798,
+        "pred": 755,
+        "tp": 606,
+        "fp": 149,
+        "fn": 192,
+        "precision": 0.8026490066225166,
+        "recall": 0.7593984962406015,
+        "ap50": 0.7312809863011072
+      }
+    },
+    "0.50": {
+      "RGB": {
+        "gt": 411,
+        "pred": 307,
+        "tp": 236,
+        "fp": 71,
+        "fn": 175,
+        "precision": 0.7687296416938111,
+        "recall": 0.5742092457420924,
+        "ap50": 0.5458969731675195
+      },
+      "SAR": {
+        "gt": 281,
+        "pred": 286,
+        "tp": 264,
+        "fp": 22,
+        "fn": 17,
+        "precision": 0.9230769230769231,
+        "recall": 0.9395017793594306,
+        "ap50": 0.922612029643954
+      },
+      "IR": {
+        "gt": 106,
+        "pred": 107,
+        "tp": 92,
+        "fp": 15,
+        "fn": 14,
+        "precision": 0.8598130841121495,
+        "recall": 0.8679245283018868,
+        "ap50": 0.8351827435002885
+      },
+      "ALL": {
+        "gt": 798,
+        "pred": 700,
+        "tp": 592,
+        "fp": 108,
+        "fn": 206,
+        "precision": 0.8457142857142858,
+        "recall": 0.7418546365914787,
+        "ap50": 0.7168337665476503
+      }
+    }
+  }
+}
