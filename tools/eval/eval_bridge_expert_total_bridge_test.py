@@ -115,34 +115,47 @@ def evaluate(preds: list[dict], gt: dict[str, list[list[float]]], iou_thr: float
     }
 
 
-def collect_predictions(model, images: list[Path], imgsz: int, conf: float, iou: float, device: str) -> list[dict]:
-    results = model.predict(
-        source=[str(p) for p in images],
-        imgsz=imgsz,
-        conf=conf,
-        iou=iou,
-        device=device,
-        verbose=False,
-        stream=True,
-    )
+def collect_predictions(
+    model,
+    images: list[Path],
+    imgsz: int,
+    conf: float,
+    iou: float,
+    device: str,
+    batch: int,
+) -> list[dict]:
+    if batch < 1:
+        raise ValueError(f"batch must be >= 1, got {batch}")
+
     preds = []
-    for result in results:
-        image_key = str(Path(result.path).resolve())
-        if result.boxes is None:
-            continue
-        for box in result.boxes:
-            cls = int(box.cls.item())
-            if cls != 0:
+    for start in range(0, len(images), batch):
+        chunk = images[start : start + batch]
+        results = model.predict(
+            source=[str(path) for path in chunk],
+            imgsz=imgsz,
+            conf=conf,
+            iou=iou,
+            device=device,
+            verbose=False,
+            stream=True,
+        )
+        for result in results:
+            image_key = str(Path(result.path).resolve())
+            if result.boxes is None:
                 continue
-            preds.append(
-                {
-                    "image": image_key,
-                    "xyxy": [float(x) for x in box.xyxy[0].tolist()],
-                    "conf": float(box.conf.item()),
-                    "class_id": 0,
-                    "class": "bridge",
-                }
-            )
+            for box in result.boxes:
+                cls = int(box.cls.item())
+                if cls != 0:
+                    continue
+                preds.append(
+                    {
+                        "image": image_key,
+                        "xyxy": [float(x) for x in box.xyxy[0].tolist()],
+                        "conf": float(box.conf.item()),
+                        "class_id": 0,
+                        "class": "bridge",
+                    }
+                )
     return preds
 
 
@@ -170,6 +183,7 @@ def main() -> int:
     parser.add_argument("--weights", default=str(DEFAULT_RUN / "weights" / "best.pt"))
     parser.add_argument("--test-root", default=DEFAULT_TEST)
     parser.add_argument("--imgsz", type=int, default=1024)
+    parser.add_argument("--batch", type=int, default=4, help="Maximum images per prediction call.")
     parser.add_argument("--conf-list", nargs="+", type=float, default=[0.05, 0.10, 0.20, 0.25, 0.35, 0.50])
     parser.add_argument("--iou", type=float, default=0.7)
     parser.add_argument("--device", default="0")
@@ -198,6 +212,7 @@ def main() -> int:
         "out_dir_input": args.out_dir,
         "out_dir": str(out_dir.resolve()),
         "imgsz": args.imgsz,
+        "batch": args.batch,
         "nms_iou": args.iou,
         "conf_results": {},
     }
@@ -208,7 +223,7 @@ def main() -> int:
         all_preds = []
         all_gt = {}
         for name, imgs in groups.items():
-            preds = collect_predictions(model, imgs, args.imgsz, conf, args.iou, args.device)
+            preds = collect_predictions(model, imgs, args.imgsz, conf, args.iou, args.device, args.batch)
             metric = evaluate(preds, gt_groups[name], 0.5)
             result[name] = metric
             all_preds.extend(preds)
