@@ -172,6 +172,9 @@ def label_path_for_image(image: Path) -> Path:
 
 def scan_labels(images_by_split: dict[str, list[Path]], seed: int, sample_count: int = 20) -> dict[str, Any]:
     class_histogram = {0: 0, 1: 0}
+    split_histograms = {split: {0: 0, 1: 0} for split in images_by_split}
+    split_label_files = {split: 0 for split in images_by_split}
+    split_empty_labels = {split: 0 for split in images_by_split}
     row_count = 0
     missing_labels = []
     label_files = []
@@ -184,6 +187,8 @@ def scan_labels(images_by_split: dict[str, list[Path]], seed: int, sample_count:
                 missing_labels.append(str(label))
                 continue
             label_files.append(label)
+            split_label_files[split] += 1
+            label_rows = 0
             for line_number, raw in enumerate(label.read_text(encoding="utf-8").splitlines(), start=1):
                 line = raw.strip()
                 if not line:
@@ -208,7 +213,11 @@ def scan_labels(images_by_split: dict[str, list[Path]], seed: int, sample_count:
                 if coordinates[2] <= 0.0 or coordinates[3] <= 0.0:
                     raise ValueError(f"Label width/height must be positive at {label}:{line_number}")
                 class_histogram[class_id] += 1
+                split_histograms[split][class_id] += 1
                 row_count += 1
+                label_rows += 1
+            if label_rows == 0:
+                split_empty_labels[split] += 1
 
     if not label_files or row_count == 0:
         raise ValueError("No non-empty YOLO detect labels were found for train/val images")
@@ -219,6 +228,9 @@ def scan_labels(images_by_split: dict[str, list[Path]], seed: int, sample_count:
         "rows_checked": row_count,
         "label_files_checked": len(unique_labels),
         "class_histogram": class_histogram,
+        "split_histograms": split_histograms,
+        "split_label_files": split_label_files,
+        "split_empty_labels": split_empty_labels,
         "missing_label_files": len(missing_labels),
         "missing_label_examples": missing_labels[:20],
         "random_label_sample": [str(path) for path in sampled],
@@ -227,7 +239,11 @@ def scan_labels(images_by_split: dict[str, list[Path]], seed: int, sample_count:
 
 
 def validate_and_write_runtime_data(
-    data_yaml: Path, runtime_yaml: Path, seed: int
+    data_yaml: Path,
+    runtime_yaml: Path,
+    seed: int,
+    require_both_classes_in_train: bool = False,
+    require_both_classes_in_val: bool = False,
 ) -> dict[str, Any]:
     if not data_yaml.is_file():
         raise FileNotFoundError(f"2-class dataset YAML does not exist: {data_yaml}")
@@ -251,6 +267,20 @@ def validate_and_write_runtime_data(
         "val": [image for source in val_paths for image in images_from_source(source)],
     }
     label_check = scan_labels(images_by_split, seed=seed)
+    requirements = {
+        "train": require_both_classes_in_train,
+        "val": require_both_classes_in_val,
+    }
+    for split, required in requirements.items():
+        if not required:
+            continue
+        histogram = label_check["split_histograms"][split]
+        missing_classes = [class_id for class_id in STUDENT_NAMES if histogram[class_id] == 0]
+        if missing_classes:
+            details = ", ".join(
+                f"class {class_id} {STUDENT_NAMES[class_id]} = 0" for class_id in missing_classes
+            )
+            raise ValueError(f"Dataset {split} must contain both classes; {details}")
 
     runtime_data = dict(data)
     runtime_data["path"] = str(root)
@@ -274,6 +304,8 @@ def validate_and_write_runtime_data(
         "train_images": len(images_by_split["train"]),
         "val_images": len(images_by_split["val"]),
         "label_check": label_check,
+        "require_both_classes_in_train": require_both_classes_in_train,
+        "require_both_classes_in_val": require_both_classes_in_val,
     }
 
 
@@ -372,6 +404,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--freeze", type=int, default=10)
     parser.add_argument("--exist-ok", action="store_true")
     parser.add_argument(
+        "--require-both-classes-in-train",
+        action="store_true",
+        help="Fail before initialization/training unless train contains class 0 and class 1 boxes.",
+    )
+    parser.add_argument(
+        "--require-both-classes-in-val",
+        action="store_true",
+        help="Fail before initialization/training unless val contains class 0 and class 1 boxes.",
+    )
+    parser.add_argument(
         "--preflight-only",
         action="store_true",
         help="Generate/verify init checkpoint and runtime YAML, but do not start training.",
@@ -412,6 +454,8 @@ def main() -> int:
         "expected_run_dir": str(expected_run_dir),
         "started_at": datetime.now().isoformat(),
         "preflight_only": args.preflight_only,
+        "require_both_classes_in_train": args.require_both_classes_in_train,
+        "require_both_classes_in_val": args.require_both_classes_in_val,
         "status": "running",
     }
     actual_run_dir: Path | None = None
@@ -433,7 +477,13 @@ def main() -> int:
             )
 
         project.mkdir(parents=True, exist_ok=True)
-        data_check = validate_and_write_runtime_data(data_yaml, runtime_yaml, seed=args.seed)
+        data_check = validate_and_write_runtime_data(
+            data_yaml,
+            runtime_yaml,
+            seed=args.seed,
+            require_both_classes_in_train=args.require_both_classes_in_train,
+            require_both_classes_in_val=args.require_both_classes_in_val,
+        )
         summary["data_check"] = data_check
         summary["resolved_data"] = data_check["resolved_data"]
         summary["names"] = data_check["names"]
