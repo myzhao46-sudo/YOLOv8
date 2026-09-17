@@ -24,6 +24,10 @@ for _path in (str(PACKAGE_ROOT.resolve()), str(PROJECT_ROOT.resolve())):
 sys.path.insert(0, str(PACKAGE_ROOT.resolve()))
 sys.path.insert(1, str(PROJECT_ROOT.resolve()))
 
+from tools.clean_pipeline.runtime import setup_runtime, assert_local_imports
+
+setup_runtime()
+
 import torch
 
 
@@ -208,10 +212,11 @@ def preflight_dataset(dataset_root: Path) -> tuple[list[dict[str, Any]], dict[st
     for split, stats in (("test_ship", ship_stats), ("test_bridge", bridge_stats)):
         if stats["missing_labels"] or stats["bad_rows"]:
             raise ValueError(f"{split} label preflight failed: {stats}")
-    if ship_stats["class_histogram"] != {"0": 694, "1": 0}:
-        raise ValueError(f"Unexpected test_ship class histogram: {ship_stats['class_histogram']}")
-    if bridge_stats["class_histogram"] != {"0": 0, "1": 798}:
-        raise ValueError(f"Unexpected test_bridge class histogram: {bridge_stats['class_histogram']}")
+    for split, stats, target in (("test_ship", ship_stats, "0"), ("test_bridge", bridge_stats, "1")):
+        if stats["boxes"] <= 0 or stats["empty_labels"]:
+            raise ValueError(f"{split} requires nonempty valid annotated images: {stats}")
+        if stats["class_histogram"][target] != stats["boxes"]:
+            raise ValueError(f"{split} class mapping mismatch: {stats['class_histogram']}")
     return ship_records + bridge_records, {
         "dataset_root": str(dataset_root),
         "test_ship": ship_stats,
@@ -225,6 +230,9 @@ def prepare_ship_expert(weights: Path):
     from ultralytics import YOLO
     from ultralytics.nn.modules.head import YOLOESegment
     from ultralytics.nn.tasks import YOLOESegModel
+    from tools.eval.eval_teacher_ship_external import set_original_classes, shape_of
+
+    assert_local_imports()
 
     if not weights.is_file():
         raise FileNotFoundError(f"Ship expert weights do not exist: {weights}")
@@ -236,14 +244,10 @@ def prepare_ship_expert(weights: Path):
             f"{qualified_name(inner)} + {qualified_name(inner.model[-1])}"
         )
     names = ["ship", "harbor", "tank"]
-    get_text_pe = getattr(wrapper, "get_text_pe", None) or getattr(inner, "get_text_pe", None)
-    set_classes = getattr(wrapper, "set_classes", None) or getattr(inner, "set_classes", None)
-    if not callable(get_text_pe) or not callable(set_classes):
-        raise AttributeError("Ship YOLOE expert must provide get_text_pe and set_classes")
-    embeddings = get_text_pe(names)
-    set_classes(names, embeddings)
-    for parameter in inner.parameters():
-        parameter.requires_grad_(False)
+    original_names = normalize_names(inner.names)
+    original_nc = int(inner.model[-1].nc)
+    original_pe_shape = shape_of(getattr(inner, "pe", None))
+    embeddings, _, _, _ = set_original_classes(wrapper, inner)
     return wrapper, inner, {
         "weights": str(weights),
         "wrapper_class": qualified_name(wrapper),
@@ -251,6 +255,10 @@ def prepare_ship_expert(weights: Path):
         "head_class": qualified_name(inner.model[-1]),
         "task": wrapper.task,
         "names": names,
+        "original_names": original_names,
+        "original_nc": original_nc,
+        "original_pe_shape": original_pe_shape,
+        "nc": int(inner.model[-1].nc),
         "text_embedding_shape": list(embeddings.shape),
         "set_classes_used_embeddings": True,
         "frozen": all(not parameter.requires_grad for parameter in inner.parameters()),
@@ -263,6 +271,8 @@ def prepare_bridge_expert(weights: Path):
     from ultralytics import YOLO
     from ultralytics.nn.modules.head import Detect
     from ultralytics.nn.tasks import DetectionModel
+
+    assert_local_imports()
 
     if not weights.is_file():
         raise FileNotFoundError(f"Bridge expert weights do not exist: {weights}")
@@ -883,6 +893,8 @@ def main() -> int:
             torch.cuda.empty_cache()
 
         fused = fuse_predictions(records, ship_predictions, bridge_predictions, args)
+        if not any(ship_predictions.values()) or not any(bridge_predictions.values()) or not any(fused.values()):
+            raise RuntimeError("Empty expert/fusion candidates: check thresholds, weights, and dataset; acceptance is incomplete")
         ship_records = [record for record in records if record["source_split"] == "test_ship"]
         bridge_records = [record for record in records if record["source_split"] == "test_bridge"]
         split_records = {

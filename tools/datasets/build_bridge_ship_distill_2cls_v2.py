@@ -147,6 +147,8 @@ def setup_local_ultralytics_import() -> None:
             sys.path.remove(value)
     sys.path.insert(0, str(PACKAGE_ROOT.resolve()))
     sys.path.insert(1, str(PROJECT_ROOT.resolve()))
+    from tools.clean_pipeline.runtime import setup_runtime
+    setup_runtime()
 
 
 def generate_ship_pseudo_labels(
@@ -171,21 +173,9 @@ def generate_ship_pseudo_labels(
             f"{type(inner).__name__} + {type(inner.model[-1]).__name__}"
         )
 
+    from tools.eval.eval_teacher_ship_external import set_original_classes
+    embeddings, _, _, _ = set_original_classes(teacher, inner)
     names = ["ship", "harbor", "tank"]
-    get_text_pe = safe_getattr(teacher, "get_text_pe", None)
-    if not callable(get_text_pe):
-        get_text_pe = safe_getattr(inner, "get_text_pe", None)
-    if not callable(get_text_pe):
-        raise AttributeError("YOLOE teacher has no callable get_text_pe")
-    embeddings = get_text_pe(names)
-    set_classes = safe_getattr(teacher, "set_classes", None)
-    if not callable(set_classes):
-        set_classes = safe_getattr(inner, "set_classes", None)
-    if not callable(set_classes):
-        raise AttributeError("YOLOE teacher has no callable set_classes")
-    set_classes(names, embeddings)
-    for parameter in inner.parameters():
-        parameter.requires_grad_(False)
 
     device_value = str(args.device)
     if device_value.isdigit():

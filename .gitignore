@@ -8,3 +8,14 @@ mobileclip_blt.ts
 
 # Training and evaluation outputs
 /runs/
+
+# Local runtime assets and Python caches
+__pycache__/
+*.py[cod]
+*.cache
+/ultralytics/datasets/
+/ultralytics/runs/
+/ultralytics/settings.json
+/ultralytics/.venv/
+*.egg-info/
+configs/*.local.yaml

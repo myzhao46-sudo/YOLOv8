@@ -1,4 +1,5 @@
-path: ultralytics/datasets/total_bridge
+# Preparation inventory only; train experts with total_bridge_trainval.yaml.
+path: C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge
 
 train:
   - images/train_rgb

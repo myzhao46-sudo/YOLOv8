@@ -22,7 +22,7 @@ Goal:
   - Labels:
       YOLO detect 5-column format:
         cls cx cy w h
-      force cls = 0 for ship in global4 namespace.
+      force cls = 0 for ship evaluation namespace.
 
 This script:
   - Does NOT modify original data.
@@ -42,10 +42,10 @@ Output structure:
     selection_summary.json
 
 YAML files:
-  configs/datasets/global4_eval_ship_extratest_rgb.yaml
-  configs/datasets/global4_eval_ship_extratest_sar.yaml
-  configs/datasets/global4_eval_ship_extratest_ir.yaml
-  configs/datasets/global4_eval_ship_extratest_all.yaml
+  configs/datasets/ship_external_rgb.yaml
+  configs/datasets/ship_external_sar.yaml
+  configs/datasets/ship_external_ir.yaml
+  configs/datasets/ship_external_all.yaml
 """
 
 from __future__ import annotations
@@ -66,7 +66,7 @@ from PIL import Image
 # Fixed default paths
 # =============================================================================
 
-REPO_ROOT = Path(r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8")
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 SRC_ROOT = Path(r"E:\YOLODATA\Ship")
 SRC_LABELS_DIR = Path(r"E:\YOLODATA\Ship\labels")
@@ -76,11 +76,8 @@ CURRENT_SMALL_ROOT = REPO_ROOT / r"ultralytics\datasets\ship_small_split"
 DST_ROOT = REPO_ROOT / r"ultralytics\datasets\ship_extratest_no_overlap"
 CONFIGS_ROOT = REPO_ROOT / r"configs\datasets"
 
-GLOBAL4_NAMES = {
+SHIP_NAMES = {
     0: "ship",
-    1: "harbor",
-    2: "tank",
-    3: "bridge",
 }
 
 TARGET_CLASS_ID = 0
@@ -552,7 +549,7 @@ def copy_selected_dataset(
     return copy_stats
 
 
-def write_global4_yaml(yaml_path: Path, val_image_dirs: List[Path]) -> None:
+def write_ship_yaml(yaml_path: Path, val_image_dirs: List[Path]) -> None:
     """
     Write eval YAML. Include train=val because some Ultralytics dataset checks
     require both train and val fields even for val-only workflows.
@@ -569,10 +566,10 @@ def write_global4_yaml(yaml_path: Path, val_image_dirs: List[Path]) -> None:
         lines.append(f"  - {norm_path(p)}")
     lines.append("")
 
-    lines.append("nc: 4")
+    lines.append("nc: 1")
     lines.append("")
     lines.append("names:")
-    for k, v in GLOBAL4_NAMES.items():
+    for k, v in SHIP_NAMES.items():
         lines.append(f"  {k}: {v}")
     lines.append("")
 
@@ -587,16 +584,16 @@ def write_yamls(dst_root: Path, configs_root: Path) -> Dict[str, str]:
     ir_dir = dst_root / "images" / "extratest_ir"
 
     yamls = {
-        "rgb": configs_root / "global4_eval_ship_extratest_rgb.yaml",
-        "sar": configs_root / "global4_eval_ship_extratest_sar.yaml",
-        "ir": configs_root / "global4_eval_ship_extratest_ir.yaml",
-        "all": configs_root / "global4_eval_ship_extratest_all.yaml",
+        "rgb": configs_root / "ship_external_rgb.yaml",
+        "sar": configs_root / "ship_external_sar.yaml",
+        "ir": configs_root / "ship_external_ir.yaml",
+        "all": configs_root / "ship_external_all.yaml",
     }
 
-    write_global4_yaml(yamls["rgb"], [rgb_dir])
-    write_global4_yaml(yamls["sar"], [sar_dir])
-    write_global4_yaml(yamls["ir"], [ir_dir])
-    write_global4_yaml(yamls["all"], [rgb_dir, sar_dir, ir_dir])
+    write_ship_yaml(yamls["rgb"], [rgb_dir])
+    write_ship_yaml(yamls["sar"], [sar_dir])
+    write_ship_yaml(yamls["ir"], [ir_dir])
+    write_ship_yaml(yamls["all"], [rgb_dir, sar_dir, ir_dir])
 
     return {k: str(v) for k, v in yamls.items()}
 
@@ -631,7 +628,7 @@ def main() -> int:
     log(f"per_modality   = {args.per_modality}")
     log(f"seed           = {args.seed}")
     log(f"hash_check     = {args.hash_check}")
-    log(f"force_class    = {TARGET_CLASS_ID}  # ship in global4")
+    log(f"force_class    = {TARGET_CLASS_ID}  # ship evaluation")
     log("=" * 100)
 
     selected, select_stats = select_candidates(
@@ -679,7 +676,7 @@ def main() -> int:
         "yaml_stats": yaml_stats,
         "output_dataset": str(dst_root),
         "class_id_for_ship": TARGET_CLASS_ID,
-        "global4_names": GLOBAL4_NAMES,
+        "ship_names": SHIP_NAMES,
     }
 
     summary_path = dst_root / "selection_summary.json"

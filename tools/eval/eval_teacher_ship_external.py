@@ -27,12 +27,12 @@ import yaml
 from PIL import Image
 
 
-REPO_ROOT = Path(r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8")
+REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = REPO_ROOT / "ultralytics"
 DEFAULT_WEIGHTS = REPO_ROOT / "ultralytics" / "best.pt"
-DEFAULT_DATA = REPO_ROOT / "configs" / "datasets" / "global4_eval_ship_extratest_all.yaml"
+DEFAULT_DATA = REPO_ROOT / "configs" / "datasets" / "ship_external.yaml"
 
-GLOBAL4_CLASS_NAMES = ["ship", "harbor", "tank", "bridge"]
+ORIGINAL_CLASS_NAMES = ["ship", "harbor", "tank"]
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 CSV_FIELDS = [
     "exp_id",
@@ -88,6 +88,41 @@ def setup_local_ultralytics_import() -> None:
             sys.path.remove(p)
     sys.path.insert(0, str(package_root))
     sys.path.insert(1, str(repo_root))
+    from tools.clean_pipeline.runtime import setup_runtime
+    setup_runtime()
+
+
+def set_original_classes(model, inner_model):
+    """Initialize the checkpoint's three original prompts without changing its fused head."""
+    from ultralytics.nn.modules.head import YOLOESegment
+    from ultralytics.nn.tasks import YOLOESegModel
+    from tools.clean_pipeline.runtime import assert_local_imports
+
+    assert_local_imports()
+    head = get_last_layer(inner_model)
+    expected_names = dict(enumerate(ORIGINAL_CLASS_NAMES))
+    before_names = to_plain_names(inner_model.names)
+    before_pe = shape_of(getattr(inner_model, "pe", None))
+    if type(inner_model) is not YOLOESegModel or type(head) is not YOLOESegment:
+        raise TypeError(f"Expected YOLOESegModel/YOLOESegment, got {obj_type(inner_model)}/{obj_type(head)}")
+    if model.task != "segment" or head.nc != 3 or before_names != expected_names:
+        raise ValueError(f"Original ship checkpoint mismatch: task={model.task}, nc={head.nc}, names={before_names}")
+    if before_pe is not None and (len(before_pe) != 3 or before_pe[1:] != [3, head.embed]):
+        raise ValueError(f"Unexpected checkpoint text embedding shape: {before_pe}")
+    get_text_pe = getattr(model, "get_text_pe", None) or getattr(inner_model, "get_text_pe", None)
+    set_classes = getattr(model, "set_classes", None) or getattr(inner_model, "set_classes", None)
+    if not callable(get_text_pe) or not callable(set_classes):
+        raise AttributeError("Original YOLOE model requires get_text_pe and set_classes")
+    embeddings = get_text_pe(list(ORIGINAL_CLASS_NAMES))
+    if list(embeddings.shape) != [1, 3, head.embed] or not torch.isfinite(embeddings).all():
+        raise ValueError(f"Invalid original-class text embeddings: {shape_of(embeddings)}")
+    set_classes(list(ORIGINAL_CLASS_NAMES), embeddings)
+    if head.nc != 3 or to_plain_names(inner_model.names) != expected_names:
+        raise ValueError("Text initialization changed the original class order or channel count")
+    for parameter in inner_model.parameters():
+        parameter.requires_grad_(False)
+    log(f"original checkpoint names={before_names}, nc=3, pe_before={before_pe}, pe_after={shape_of(embeddings)}")
+    return embeddings, "original three-class YOLOE", safe_signature(get_text_pe), safe_signature(set_classes)
 
 
 def safe_getattr(obj: object, name: str, default=None):
@@ -201,8 +236,13 @@ def resolve_val_dirs(data_yaml: Path) -> list[Path]:
     val = data["val"]
     values = val if isinstance(val, list) else [val]
     dirs = []
+    root = Path(str(data.get("path", data_yaml.parent))).expanduser()
+    if not root.is_absolute():
+        root = data_yaml.parent / root
     for v in values:
         p = Path(str(v)).expanduser()
+        if not p.is_absolute():
+            p = root / p
         if not p.exists():
             raise FileNotFoundError(f"val images directory does not exist: {p}")
         if not p.is_dir():
@@ -389,26 +429,6 @@ def evaluate_predictions(predictions: list[dict], gt_by_image: dict[str, list[li
         "recall": recall,
         "ap50": compute_ap_from_pr(recalls, precisions),
     }
-
-
-def set_global4_classes(model, inner_model):
-    names = list(GLOBAL4_CLASS_NAMES)
-    get_text_pe = safe_getattr(model, "get_text_pe", None)
-    if not callable(get_text_pe):
-        get_text_pe = safe_getattr(inner_model, "get_text_pe", None)
-    if not callable(get_text_pe):
-        raise AttributeError("get_text_pe not found on wrapper or inner model")
-    embeddings = get_text_pe(names)
-
-    set_classes = safe_getattr(model, "set_classes", None)
-    target = "YOLO wrapper"
-    if not callable(set_classes):
-        set_classes = safe_getattr(inner_model, "set_classes", None)
-        target = "inner model"
-    if not callable(set_classes):
-        raise AttributeError("set_classes not found on wrapper or inner model")
-    set_classes(names, embeddings)
-    return embeddings, target, safe_signature(get_text_pe), safe_signature(set_classes)
 
 
 def tensor_from_rgb_images(images: list[np.ndarray]) -> torch.Tensor:
@@ -632,10 +652,10 @@ def build_result_row(
     }
 
 
-def parse_args():
+def parse_args(argv=None, default_data=None):
     parser = argparse.ArgumentParser(description="Box-only YOLOESeg teacher eval for external ship detect labels.")
     parser.add_argument("--weights", default=str(DEFAULT_WEIGHTS))
-    parser.add_argument("--data", default=str(DEFAULT_DATA))
+    parser.add_argument("--data", default=str(default_data or DEFAULT_DATA))
     parser.add_argument("--target-class", type=int, default=0)
     parser.add_argument("--target-name", default="ship")
     parser.add_argument("--imgsz", type=int, default=640)
@@ -649,12 +669,18 @@ def parse_args():
     parser.add_argument("--save-csv", default="")
     parser.add_argument("--save-md", default="")
     parser.add_argument("--strict-label", action="store_true")
-    return parser.parse_args()
+    parser.add_argument("--out-dir", default="", help="New directory for exact metrics, predictions, and ground-truth JSON.")
+    return parser.parse_args(argv)
 
 
-def main() -> int:
-    args = parse_args()
+def main(argv=None, default_data=None) -> int:
+    args = parse_args(argv, default_data)
     setup_local_ultralytics_import()
+    if args.target_class not in range(3):
+        raise ValueError("The original checkpoint only has classes 0 ship / 1 harbor / 2 tank")
+    out_dir = Path(args.out_dir).resolve() if args.out_dir else None
+    if out_dir:
+        out_dir.mkdir(parents=True, exist_ok=False)
 
     from ultralytics import YOLO
     import ultralytics as ultralytics_pkg
@@ -701,14 +727,14 @@ def main() -> int:
     log(f"is YOLOESegment: {'YOLOESegment' in before_head['last_layer_type']}")
 
     log("")
-    log("[GLOBAL4 SET_CLASSES]")
+    log("[ORIGINAL THREE-CLASS SET_CLASSES]")
     set_classes_ok = False
-    embeddings, set_target, get_sig, set_sig = set_global4_classes(model, inner)
+    embeddings, set_target, get_sig, set_sig = set_original_classes(model, inner)
     set_classes_ok = True
     after_head = head_state(inner)
     pe_shape = shape_of(embeddings)
     task_after = get_task_state(model, inner)
-    log(f"global4 names: {GLOBAL4_CLASS_NAMES}")
+    log(f"original names: {ORIGINAL_CLASS_NAMES}")
     log(f"get_text_pe signature: {get_sig}")
     log(f"set_classes target: {set_target}")
     log(f"set_classes signature: {set_sig}")
@@ -727,6 +753,7 @@ def main() -> int:
     all_score_channels = set()
     rows = []
     notes_global = []
+    exact_metrics = {}
 
     if args.target_class != 0:
         notes_global.append("non-default target class requested; this task normally evaluates ship class 0 only")
@@ -743,10 +770,13 @@ def main() -> int:
 
         gt_by_image, gt_stats = collect_ground_truth(image_paths, labels_dir, args)
         predictions, score_channels, total_boxes_all_classes = collect_predictions(inner, image_paths, args)
+        if score_channels != {3}:
+            raise RuntimeError(f"Original YOLOE must emit three score channels, got {score_channels}")
         metrics = evaluate_predictions(predictions, gt_by_image, args.match_iou)
+        exact_metrics[str(images_dir)] = metrics
         notes = list(notes_global)
         if score_channels == {3}:
-            notes.append("fused head emits 3 score channels; class 3 bridge has no true output channel")
+            notes.append("fused head emits the original three score channels: ship, harbor, tank")
         if args.target_class >= max(score_channels or {0}):
             notes.append("target class id is outside emitted score channels; predictions will be empty")
 
@@ -794,9 +824,10 @@ def main() -> int:
 
     if len(val_dirs) > 1:
         metrics = evaluate_predictions(all_predictions, all_gt_by_image, args.match_iou)
+        exact_metrics["ALL"] = metrics
         notes = list(notes_global)
         if all_score_channels == {3}:
-            notes.append("fused head emits 3 score channels; class 3 bridge has no true output channel")
+            notes.append("fused head emits the original three score channels: ship, harbor, tank")
         log("")
         log("[EVAL DATASET: ALL]")
         log(f"images dirs: {';'.join(all_images_dirs)}")
@@ -839,6 +870,13 @@ def main() -> int:
     if args.save_md:
         append_md(Path(args.save_md), rows)
         log(f"[SAVE] Markdown appended: {args.save_md}")
+    if out_dir:
+        (out_dir / "metrics.json").write_text(json.dumps({
+            "weights": str(weights), "data": str(data_yaml), "parameters": vars(args),
+            "ap_method": "step-integral precision envelope", "metrics": exact_metrics,
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+        (out_dir / "predictions.json").write_text(json.dumps(all_predictions, indent=2), encoding="utf-8")
+        (out_dir / "ground_truth.json").write_text(json.dumps(all_gt_by_image, indent=2), encoding="utf-8")
 
     log("")
     log("[CONCLUSION]")
@@ -850,7 +888,7 @@ def main() -> int:
     log(f"pe shape: {pe_shape}")
     log(f"score channels seen: {sorted(all_score_channels)}")
     if all_score_channels == {3}:
-        log("WARNING: fused head only emits 3 score channels; class 3 bridge has no true output channel.")
+        log("Verified fused head score channels: ship, harbor, tank.")
     return 0
 
 

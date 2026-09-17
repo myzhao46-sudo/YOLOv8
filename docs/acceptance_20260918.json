@@ -1,0 +1,2436 @@
+{
+  "date": "2026-09-18",
+  "source_branch": "bridge_clean_official",
+  "source_commit": "736cb86c865fa490e9ae77e3189b8098825897fd",
+  "branch": "distill_pipeline_clean",
+  "worktree": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean",
+  "source_reference_exit": 0,
+  "source_reference": "runs/migration/before",
+  "run": "runs/clean_smoke/acceptance_20260918_final",
+  "steps": [
+    {
+      "name": "existing_weights",
+      "argv": [
+        "C:\\Users\\DOCTOR\\anaconda3\\envs\\y8distill\\python.exe",
+        "-B",
+        "tools/clean_pipeline/evaluate.py",
+        "--dataset-root",
+        "C:/Users/DOCTOR/Documents/GitHub/YOLOv8_distill_pipeline_clean/runs/migration/fixtures/data/evaluation",
+        "--ship-weights",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\best.pt",
+        "--imgsz",
+        "1024",
+        "--batch",
+        "2",
+        "--device",
+        "0",
+        "--bridge-weights",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\runs\\bridge_expert\\yolov8m_total_bridge_split_img1024_ep150\\weights\\best.pt",
+        "--out",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\clean_smoke\\acceptance_20260918_final\\existing_weights"
+      ],
+      "cwd": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean",
+      "log": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\clean_smoke\\acceptance_20260918_final\\existing_weights.log",
+      "exit_code": 0
+    },
+    {
+      "name": "train",
+      "argv": [
+        "C:\\Users\\DOCTOR\\anaconda3\\envs\\y8distill\\python.exe",
+        "-B",
+        "tools/train/train_bridge_expert_yolo.py",
+        "--model",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\yolov8m.pt",
+        "--data",
+        "C:/Users/DOCTOR/Documents/GitHub/YOLOv8_distill_pipeline_clean/runs/migration/fixtures/data/expert/data.yaml",
+        "--imgsz",
+        "1024",
+        "--epochs",
+        "1",
+        "--batch",
+        "2",
+        "--device",
+        "0",
+        "--workers",
+        "0",
+        "--project",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\clean_smoke\\acceptance_20260918_final\\training",
+        "--name",
+        "expert",
+        "--patience",
+        "0",
+        "--close-mosaic",
+        "0",
+        "--seed",
+        "42",
+        "--nbs",
+        "2",
+        "--verify-updates",
+        "--no-amp"
+      ],
+      "cwd": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean",
+      "log": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\clean_smoke\\acceptance_20260918_final\\train.log",
+      "exit_code": 0
+    },
+    {
+      "name": "new_weights",
+      "argv": [
+        "C:\\Users\\DOCTOR\\anaconda3\\envs\\y8distill\\python.exe",
+        "-B",
+        "tools/clean_pipeline/evaluate.py",
+        "--dataset-root",
+        "C:/Users/DOCTOR/Documents/GitHub/YOLOv8_distill_pipeline_clean/runs/migration/fixtures/data/evaluation",
+        "--ship-weights",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\best.pt",
+        "--imgsz",
+        "1024",
+        "--batch",
+        "2",
+        "--device",
+        "0",
+        "--bridge-weights",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\clean_smoke\\acceptance_20260918_final\\training\\expert\\weights\\last.pt",
+        "--out",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\clean_smoke\\acceptance_20260918_final\\new_weights"
+      ],
+      "cwd": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean",
+      "log": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\clean_smoke\\acceptance_20260918_final\\new_weights.log",
+      "exit_code": 0
+    }
+  ],
+  "environment": {
+    "python": "3.10.20 | packaged by Anaconda, Inc. | (main, Mar 11 2026, 17:42:35) [MSC v.1942 64 bit (AMD64)]",
+    "executable": "C:\\Users\\DOCTOR\\anaconda3\\envs\\y8distill\\python.exe",
+    "torch": "2.3.1+cu121",
+    "cuda": "12.1",
+    "cuda_available": true,
+    "gpu": "NVIDIA GeForce RTX 4070 Laptop GPU",
+    "ultralytics": "8.4.32"
+  },
+  "assets": {
+    "ship": {
+      "path": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\best.pt",
+      "sha256": "50f306b0e2e50de49fe632377b8b4adcdd8c4f6eef50af3cff075a6a9b9415bd"
+    },
+    "expert": {
+      "path": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\runs\\bridge_expert\\yolov8m_total_bridge_split_img1024_ep150\\weights\\best.pt",
+      "sha256": "47b87d9fe8e7ff1633a46173ea1a7077bce1c72fdfc2fdf7486285dc353ad45b"
+    },
+    "init": {
+      "path": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\yolov8m.pt",
+      "sha256": "5d4a90cdc7a21786cc59cd19778e9eafff836df9e2da32524737c7ee6efe4fe5"
+    },
+    "text": {
+      "path": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\mobileclip_blt.ts",
+      "sha256": "a67804d1b0f07b8b9a20c1761ec0847f34660f5fa338ec70e8f3fce68ed95e54"
+    }
+  },
+  "new_weight": {
+    "path": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\clean_smoke\\acceptance_20260918_final\\training\\expert\\weights\\last.pt",
+    "sha256": "a4416db6bd63d35f4fe8174625ea174b17fde8ebce0c4f148db5120ffee7fe0c"
+  },
+  "consistency": {
+    "status": "passed",
+    "box_atol": 0.001,
+    "score_atol": 1e-06,
+    "metrics_and_matches": "exact",
+    "differences": {
+      "ship": {
+        "candidates": 193,
+        "max_box_abs_diff": 0.0,
+        "max_score_abs_diff": 0.0
+      },
+      "bridge": {
+        "candidates": 77,
+        "max_box_abs_diff": 0.0,
+        "max_score_abs_diff": 0.0
+      },
+      "fusion": {
+        "candidates": 267,
+        "max_box_abs_diff": 0.0,
+        "max_score_abs_diff": 0.0
+      }
+    }
+  },
+  "training": {
+    "optimizer_steps": 6,
+    "batches": 6,
+    "finite_loss": true,
+    "finite_gradients": true,
+    "parameter_in_optimizer": true,
+    "parameter_max_abs_diff": 0.0002858787775039673,
+    "gradient_max_abs": 0.9036057591438293,
+    "losses": [
+      {
+        "epoch": 0,
+        "total": 19.450973510742188,
+        "box_loss": 1.745735764503479,
+        "cls_loss": 6.058024883270264,
+        "dfl_loss": 1.9217255115509033
+      },
+      {
+        "epoch": 0,
+        "total": 25.235755920410156,
+        "box_loss": 3.423745632171631,
+        "cls_loss": 6.252815246582031,
+        "dfl_loss": 2.941316604614258
+      },
+      {
+        "epoch": 0,
+        "total": 31.979238510131836,
+        "box_loss": 2.166368007659912,
+        "cls_loss": 10.881306648254395,
+        "dfl_loss": 2.9419443607330322
+      },
+      {
+        "epoch": 0,
+        "total": 21.056055068969727,
+        "box_loss": 2.7946598529815674,
+        "cls_loss": 5.548374176025391,
+        "dfl_loss": 2.1849935054779053
+      },
+      {
+        "epoch": 0,
+        "total": 14.997186660766602,
+        "box_loss": 1.4881994724273682,
+        "cls_loss": 3.9023919105529785,
+        "dfl_loss": 2.108002185821533
+      },
+      {
+        "epoch": 0,
+        "total": 14.035957336425781,
+        "box_loss": 1.4342540502548218,
+        "cls_loss": 3.6504249572753906,
+        "dfl_loss": 1.9332997798919678
+      }
+    ],
+    "passed": true,
+    "parameter_name": "model.0.conv.weight",
+    "parameter_shape": [
+      48,
+      3,
+      3,
+      3
+    ],
+    "mean_loss": {
+      "total": 21.125861167907715,
+      "box_loss": 2.1754937966664634,
+      "cls_loss": 6.048889636993408,
+      "dfl_loss": 2.3385469913482666
+    }
+  },
+  "samples": [
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/train_rgb/rgb_13074.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/train_rgb/rgb_13074.txt",
+      "split": "train",
+      "modality": "rgb",
+      "class_id": 0,
+      "sha256": "643d73cb5eb865a89982e54e6469df0390a2964e1a5d13dac23ad7eb4bca0e6a",
+      "label_sha256": "0b731c596d4be171746918df2d7ad44f08991871206b91bb7b6a29d3eeabe45a"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/train_rgb/rgb_19757.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/train_rgb/rgb_19757.txt",
+      "split": "train",
+      "modality": "rgb",
+      "class_id": 0,
+      "sha256": "d66bbd77a432cb944021343e482dd9d917f7fdd382c305fa0878aee493ffc922",
+      "label_sha256": "96d1df7fcb7b14eec66a2a9ce58986e3c44b71b7ec58b23f0cb6dd5b4353db73"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/train_rgb/rgb_21359.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/train_rgb/rgb_21359.txt",
+      "split": "train",
+      "modality": "rgb",
+      "class_id": 0,
+      "sha256": "74073212c6c025e49222d9f5e74718ee984ee5b7de2f035051c7121872454201",
+      "label_sha256": "da3ab99a555f06d40cf47d92bae576807f5bb6a0701ce0ef2ab87373e35f5916"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/train_rgb/rgb_17929.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/train_rgb/rgb_17929.txt",
+      "split": "train",
+      "modality": "rgb",
+      "class_id": 0,
+      "sha256": "61cc57f81915ac0943b9dba6a45f5b4754ddba684b00acc5bea8000bc88b15a6",
+      "label_sha256": "226450c3698e971008dd61cae707ba9cbf33a750a8cdc0b47fde83f554f4f7aa"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/train_sar/sar_07541.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/train_sar/sar_07541.txt",
+      "split": "train",
+      "modality": "sar",
+      "class_id": 0,
+      "sha256": "b9f9df306d03c3112719c4161d7c43b0aceb3ea79edb0f0afd6d6d85eb7cc947",
+      "label_sha256": "a5cad1934417e344ee1f1f79c8f519abc874989a01fa3e946218c339e4bd587d"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/train_sar/sar_021316.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/train_sar/sar_021316.txt",
+      "split": "train",
+      "modality": "sar",
+      "class_id": 0,
+      "sha256": "e35ae70b25a4d341fd812989068610874aa5eee9e1e140b8b1d77133f4fd51ce",
+      "label_sha256": "490a670efe4cffe1567b8f967a905559ac88eb2e73d1a9c80546cebf425f2e45"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/train_sar/sar_04992.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/train_sar/sar_04992.txt",
+      "split": "train",
+      "modality": "sar",
+      "class_id": 0,
+      "sha256": "c293cc12b69423db98e9d75979a5ffde36023c8c697044a92fd2ab71eb3b884a",
+      "label_sha256": "100b3142ca1669852f28b14d92ddd1fc2f50e150015c19c740c98b0924f5eab6"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/train_sar/sar_07614.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/train_sar/sar_07614.txt",
+      "split": "train",
+      "modality": "sar",
+      "class_id": 0,
+      "sha256": "fa6aae24e22801ba197914f9d766bae2b4921eea35d4d4941748e548c4d56031",
+      "label_sha256": "8c669efe1ff07a792aff23b1bf38583eecfb10c28236a0b2eb963209f30d31f9"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/train_ir/ir_l01019359.png",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/train_ir/ir_l01019359.txt",
+      "split": "train",
+      "modality": "ir",
+      "class_id": 0,
+      "sha256": "af8a89ebb2bbacd9b9871c0bbe35cf80650b44aabb0a75b9d68fd08500b9a441",
+      "label_sha256": "edafefe95405acad5c075aeaa9b3e70c09909910aceee6067b2ccf7ecd41e3c6"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/train_ir/ir_o01720474.png",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/train_ir/ir_o01720474.txt",
+      "split": "train",
+      "modality": "ir",
+      "class_id": 0,
+      "sha256": "620181e51b4ea789a1abcf09dedfcc1846a125fe29b804f46db540f561cdfb04",
+      "label_sha256": "98c11ddef31cdab3df1b2f63c8ab2c6e1cd89f6dac5d5d0506c673411c135795"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/train_ir/ir_a00104694.png",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/train_ir/ir_a00104694.txt",
+      "split": "train",
+      "modality": "ir",
+      "class_id": 0,
+      "sha256": "1483df350e262bf4c72924b007a3fd9b8e75c5585972cd31735e52eae1af831f",
+      "label_sha256": "ff1e89a73c8e644b62b7afb5f1902b36a20ed48eeb25f07586a7ef807b3711a3"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/train_ir/ir_c01783983.png",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/train_ir/ir_c01783983.txt",
+      "split": "train",
+      "modality": "ir",
+      "class_id": 0,
+      "sha256": "15d99008f4ac77139c71b1e066bf23183085b810298de92e368c73ce3b9fdacb",
+      "label_sha256": "8cf29a849214ba15b6ef2ba6aefd5a0265290df87bd09bc6b2cb49ba913c4e9f"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/val_rgb/rgb_22404.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/val_rgb/rgb_22404.txt",
+      "split": "val",
+      "modality": "rgb",
+      "class_id": 0,
+      "sha256": "7a5bc65a4aab901474b1dd05ce4a727be0b7cd09419968fb3dc26550aee54d5f",
+      "label_sha256": "aa9c4a9af95561701239fc7b1d383f5c33e0bcf08cb80e234c0bba5d525d0a43"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/val_rgb/rgb_12073.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/val_rgb/rgb_12073.txt",
+      "split": "val",
+      "modality": "rgb",
+      "class_id": 0,
+      "sha256": "ce5f791b590bd483b9025db06d9614825f1cc2569b0add0a59b8289909dedab5",
+      "label_sha256": "4fc07ba4e9f1162ef8541233aad8602acd3540b8d3868f5ca019ad6f28176c5c"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/val_sar/sar_017555.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/val_sar/sar_017555.txt",
+      "split": "val",
+      "modality": "sar",
+      "class_id": 0,
+      "sha256": "022bd80a552e6972fdc33845f7d5020e311f671a5daa1d54a9b99efb2b887f5e",
+      "label_sha256": "d65a3f52c9e09fbb75df40da30d33709756653458fa9f820f5c54a5fa40769e3"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/val_sar/sar_023645.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/val_sar/sar_023645.txt",
+      "split": "val",
+      "modality": "sar",
+      "class_id": 0,
+      "sha256": "1ac0a61b1246433247d4975db93808abfdee907ce071b3e50714d55979e4fc3c",
+      "label_sha256": "6861c5024b8b84e86eca030ac547c6d29b3471c2502698a7c9a804958f4a9234"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/val_ir/ir_i00283647.png",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/val_ir/ir_i00283647.txt",
+      "split": "val",
+      "modality": "ir",
+      "class_id": 0,
+      "sha256": "be5afe2d9329abae437b3d2a622fabf779d079f43acf5dd24766977b7ec15d3e",
+      "label_sha256": "440fe6222c65436e29bb46d02b4cd80093bee20dc4ac0c177ad75fe84bf52577"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/images/val_ir/ir_z01842870.png",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/total_bridge_trainval/labels/val_ir/ir_z01842870.txt",
+      "split": "val",
+      "modality": "ir",
+      "class_id": 0,
+      "sha256": "e49c6928a22ca2a335e80e8d5322db90fa2b3fa7d5a2d892544723cc17a33c43",
+      "label_sha256": "8dfd18ef185a15f113e074f9446c10f8a27cd17c0bf4b68883e72ce9e38a9eb8"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_ship_distill_2cls_v2/images/test_ship/ship_test_rgb_2558.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_ship_distill_2cls_v2/labels/test_ship/ship_test_rgb_2558.txt",
+      "split": "test_ship",
+      "modality": "rgb",
+      "class_id": 0,
+      "sha256": "748d8d101358a38636c94e6eb821c8467f461d0e4de0cdcf5ad9ff8bf7f53009",
+      "label_sha256": "bc9e5807cbf1a2de565e13ecd9b9a778ce71d7734b81f70d4d4e411a245acecd"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_ship_distill_2cls_v2/images/test_ship/ship_test_sar_0064892.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_ship_distill_2cls_v2/labels/test_ship/ship_test_sar_0064892.txt",
+      "split": "test_ship",
+      "modality": "sar",
+      "class_id": 0,
+      "sha256": "9fd273cd2ce064d3e348c6f441af49d014d1d3bcba63b364f290b663cb2e110c",
+      "label_sha256": "520210f985f2284beddff70937ec754ac803ee31ca92615cc9bd709e9df71cfb"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_ship_distill_2cls_v2/images/test_ship/ship_test_ir_1_5324.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_ship_distill_2cls_v2/labels/test_ship/ship_test_ir_1_5324.txt",
+      "split": "test_ship",
+      "modality": "ir",
+      "class_id": 0,
+      "sha256": "7ef991860bd6423cd47955fb40a311919022ec5d71bd886dce4490281a66d41d",
+      "label_sha256": "d6bb65737632c75961901c2e4f58ef9e1030ddcf748dd5fbdc43a0bbb886dc80"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_ship_distill_2cls_v2/images/test_bridge/bridge_test_rgb_rgb_17912.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_ship_distill_2cls_v2/labels/test_bridge/bridge_test_rgb_rgb_17912.txt",
+      "split": "test_bridge",
+      "modality": "rgb",
+      "class_id": 1,
+      "sha256": "9890233c5000c14cf2c247d724ecd6d0b9db480cfdca8b13c2f553fb5894b281",
+      "label_sha256": "d6fa41fd0d331702aa12416f780f94ace47d90482e7cbc482589583984ad527f"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_ship_distill_2cls_v2/images/test_bridge/bridge_test_sar_sar_021378.jpg",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_ship_distill_2cls_v2/labels/test_bridge/bridge_test_sar_sar_021378.txt",
+      "split": "test_bridge",
+      "modality": "sar",
+      "class_id": 1,
+      "sha256": "ebe250b759940cd855e260bd0f3e5b78e7e35ea086cf7f40322d41f6054cb9e0",
+      "label_sha256": "b47558d5101283a85ef4c3241ba8349dfedfe39e2795d11729e7c1303e614f1d"
+    },
+    {
+      "source_image": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_ship_distill_2cls_v2/images/test_bridge/bridge_test_ir_ir_o01988873.png",
+      "source_label": "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/bridge_ship_distill_2cls_v2/labels/test_bridge/bridge_test_ir_ir_o01988873.txt",
+      "split": "test_bridge",
+      "modality": "ir",
+      "class_id": 1,
+      "sha256": "fdb23cef2c3d90172aa08ced88cd50d50e12e4ee42c7a83dca9c67444147531c",
+      "label_sha256": "6004ffb532a2d901b6482a6ec84eb0744d57d1479c2d94542f1b0b996416ca7b"
+    }
+  ],
+  "counts": {
+    "train": 12,
+    "val": 6,
+    "test_ship": 3,
+    "test_bridge": 3
+  },
+  "leakage_check": {
+    "selected_content_hashes_recomputed": true,
+    "selected_content_duplicates": 0,
+    "selected_vs_original_other_split_manifest_hashes": "no overlap",
+    "scope": "All selected image bytes verified against manifests; unselected files not rehashed"
+  },
+  "before_after_metrics": {
+    "ship": {
+      "test_ship": {
+        "split": "test_ship",
+        "image_count": 3,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 10,
+          "1": 0
+        },
+        "prediction_histogram_all": {
+          "0": 41,
+          "1": 0
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 10,
+          "1": 0
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            0
+          ],
+          "ap50": 0.995,
+          "map50_95": 0.6534646341463415,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "gt": 10,
+            "predictions_all": 41,
+            "ap50": 0.995,
+            "map50_95": 0.6534646341463415,
+            "ap_by_iou": {
+              "0.50": 0.995,
+              "0.55": 0.995,
+              "0.60": 0.995,
+              "0.65": 0.8888333333333333,
+              "0.70": 0.8888333333333333,
+              "0.75": 0.7937398373983742,
+              "0.80": 0.5722967479674798,
+              "0.85": 0.24008943089430895,
+              "0.90": 0.10725609756097562,
+              "0.95": 0.05859756097560976
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 10,
+            "tp": 10,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        },
+        "off_target_false_positives": {
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "note": "This class has no GT in this split, so every prediction is an off-target false positive.",
+            "predictions_all": 0,
+            "images_with_predictions_all": 0,
+            "predictions_at_report_conf": 0,
+            "images_with_predictions_at_report_conf": 0,
+            "top_images_at_report_conf": []
+          }
+        }
+      },
+      "test_bridge": {
+        "split": "test_bridge",
+        "image_count": 3,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 0,
+          "1": 3
+        },
+        "prediction_histogram_all": {
+          "0": 152,
+          "1": 0
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 4,
+          "1": 0
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            1
+          ],
+          "ap50": 0.0,
+          "map50_95": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 4,
+          "fn": 3,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "gt": 3,
+            "predictions_all": 0,
+            "ap50": 0.0,
+            "map50_95": 0.0,
+            "ap_by_iou": {
+              "0.50": 0.0,
+              "0.55": 0.0,
+              "0.60": 0.0,
+              "0.65": 0.0,
+              "0.70": 0.0,
+              "0.75": 0.0,
+              "0.80": 0.0,
+              "0.85": 0.0,
+              "0.90": 0.0,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 3,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        },
+        "off_target_false_positives": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "note": "This class has no GT in this split, so every prediction is an off-target false positive.",
+            "predictions_all": 152,
+            "images_with_predictions_all": 3,
+            "predictions_at_report_conf": 4,
+            "images_with_predictions_at_report_conf": 3,
+            "top_images_at_report_conf": [
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_bridge\\bridge_test_ir_ir_o01988873.png",
+                "count": 2
+              },
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_bridge\\bridge_test_sar_sar_021378.jpg",
+                "count": 1
+              },
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_bridge\\bridge_test_rgb_rgb_17912.jpg",
+                "count": 1
+              }
+            ]
+          }
+        }
+      },
+      "combined": {
+        "split": "combined",
+        "image_count": 6,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 10,
+          "1": 3
+        },
+        "prediction_histogram_all": {
+          "0": 193,
+          "1": 0
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 14,
+          "1": 0
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            0,
+            1
+          ],
+          "ap50": 0.46113636363636357,
+          "map50_95": 0.28330649470810465,
+          "precision": 0.7142857142857143,
+          "recall": 0.7692307692307693,
+          "tp": 10,
+          "fp": 4,
+          "fn": 3,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "gt": 10,
+            "predictions_all": 193,
+            "ap50": 0.9222727272727271,
+            "map50_95": 0.5666129894162093,
+            "ap_by_iou": {
+              "0.50": 0.9222727272727271,
+              "0.55": 0.9222727272727271,
+              "0.60": 0.9222727272727271,
+              "0.65": 0.7526808905380337,
+              "0.70": 0.7526808905380337,
+              "0.75": 0.656932113778154,
+              "0.80": 0.4401455711818407,
+              "0.85": 0.1619845088294385,
+              "0.90": 0.08503022452504318,
+              "0.95": 0.04985751295336788
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 14,
+            "tp": 10,
+            "fp": 4,
+            "fn": 0,
+            "precision": 0.7142857142857143,
+            "recall": 1.0
+          },
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "gt": 3,
+            "predictions_all": 0,
+            "ap50": 0.0,
+            "map50_95": 0.0,
+            "ap_by_iou": {
+              "0.50": 0.0,
+              "0.55": 0.0,
+              "0.60": 0.0,
+              "0.65": 0.0,
+              "0.70": 0.0,
+              "0.75": 0.0,
+              "0.80": 0.0,
+              "0.85": 0.0,
+              "0.90": 0.0,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 3,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        },
+        "off_target_false_positives": {}
+      }
+    },
+    "bridge": {
+      "test_ship": {
+        "split": "test_ship",
+        "image_count": 3,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 10,
+          "1": 0
+        },
+        "prediction_histogram_all": {
+          "0": 0,
+          "1": 45
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 0,
+          "1": 1
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            0
+          ],
+          "ap50": 0.0,
+          "map50_95": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 1,
+          "fn": 10,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "gt": 10,
+            "predictions_all": 0,
+            "ap50": 0.0,
+            "map50_95": 0.0,
+            "ap_by_iou": {
+              "0.50": 0.0,
+              "0.55": 0.0,
+              "0.60": 0.0,
+              "0.65": 0.0,
+              "0.70": 0.0,
+              "0.75": 0.0,
+              "0.80": 0.0,
+              "0.85": 0.0,
+              "0.90": 0.0,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 10,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        },
+        "off_target_false_positives": {
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "note": "This class has no GT in this split, so every prediction is an off-target false positive.",
+            "predictions_all": 45,
+            "images_with_predictions_all": 3,
+            "predictions_at_report_conf": 1,
+            "images_with_predictions_at_report_conf": 1,
+            "top_images_at_report_conf": [
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_ship\\ship_test_ir_1_5324.jpg",
+                "count": 1
+              }
+            ]
+          }
+        }
+      },
+      "test_bridge": {
+        "split": "test_bridge",
+        "image_count": 3,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 0,
+          "1": 3
+        },
+        "prediction_histogram_all": {
+          "0": 0,
+          "1": 32
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 0,
+          "1": 5
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            1
+          ],
+          "ap50": 0.863,
+          "map50_95": 0.7017075,
+          "precision": 0.6,
+          "recall": 1.0,
+          "tp": 3,
+          "fp": 2,
+          "fn": 0,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "gt": 3,
+            "predictions_all": 32,
+            "ap50": 0.863,
+            "map50_95": 0.7017075,
+            "ap_by_iou": {
+              "0.50": 0.863,
+              "0.55": 0.863,
+              "0.60": 0.863,
+              "0.65": 0.863,
+              "0.70": 0.863,
+              "0.75": 0.6755187500000001,
+              "0.80": 0.6755187500000001,
+              "0.85": 0.6755187500000001,
+              "0.90": 0.6755187500000001,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 5,
+            "tp": 3,
+            "fp": 2,
+            "fn": 0,
+            "precision": 0.6,
+            "recall": 1.0
+          }
+        },
+        "off_target_false_positives": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "note": "This class has no GT in this split, so every prediction is an off-target false positive.",
+            "predictions_all": 0,
+            "images_with_predictions_all": 0,
+            "predictions_at_report_conf": 0,
+            "images_with_predictions_at_report_conf": 0,
+            "top_images_at_report_conf": []
+          }
+        }
+      },
+      "combined": {
+        "split": "combined",
+        "image_count": 6,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 10,
+          "1": 3
+        },
+        "prediction_histogram_all": {
+          "0": 0,
+          "1": 77
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 0,
+          "1": 6
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            0,
+            1
+          ],
+          "ap50": 0.41500000000000004,
+          "map50_95": 0.34137428571428574,
+          "precision": 0.5,
+          "recall": 0.23076923076923078,
+          "tp": 3,
+          "fp": 3,
+          "fn": 10,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "gt": 10,
+            "predictions_all": 0,
+            "ap50": 0.0,
+            "map50_95": 0.0,
+            "ap_by_iou": {
+              "0.50": 0.0,
+              "0.55": 0.0,
+              "0.60": 0.0,
+              "0.65": 0.0,
+              "0.70": 0.0,
+              "0.75": 0.0,
+              "0.80": 0.0,
+              "0.85": 0.0,
+              "0.90": 0.0,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 10,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "gt": 3,
+            "predictions_all": 77,
+            "ap50": 0.8300000000000001,
+            "map50_95": 0.6827485714285715,
+            "ap_by_iou": {
+              "0.50": 0.8300000000000001,
+              "0.55": 0.8300000000000001,
+              "0.60": 0.8300000000000001,
+              "0.65": 0.8300000000000001,
+              "0.70": 0.8300000000000001,
+              "0.75": 0.6693714285714286,
+              "0.80": 0.6693714285714286,
+              "0.85": 0.6693714285714286,
+              "0.90": 0.6693714285714286,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 6,
+            "tp": 3,
+            "fp": 3,
+            "fn": 0,
+            "precision": 0.5,
+            "recall": 1.0
+          }
+        },
+        "off_target_false_positives": {}
+      }
+    },
+    "fusion": {
+      "test_ship": {
+        "split": "test_ship",
+        "image_count": 3,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 10,
+          "1": 0
+        },
+        "prediction_histogram_all": {
+          "0": 41,
+          "1": 43
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 10,
+          "1": 1
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            0
+          ],
+          "ap50": 0.995,
+          "map50_95": 0.6534646341463415,
+          "precision": 0.9090909090909091,
+          "recall": 1.0,
+          "tp": 10,
+          "fp": 1,
+          "fn": 0,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "gt": 10,
+            "predictions_all": 41,
+            "ap50": 0.995,
+            "map50_95": 0.6534646341463415,
+            "ap_by_iou": {
+              "0.50": 0.995,
+              "0.55": 0.995,
+              "0.60": 0.995,
+              "0.65": 0.8888333333333333,
+              "0.70": 0.8888333333333333,
+              "0.75": 0.7937398373983742,
+              "0.80": 0.5722967479674798,
+              "0.85": 0.24008943089430895,
+              "0.90": 0.10725609756097562,
+              "0.95": 0.05859756097560976
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 10,
+            "tp": 10,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        },
+        "off_target_false_positives": {
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "note": "This class has no GT in this split, so every prediction is an off-target false positive.",
+            "predictions_all": 43,
+            "images_with_predictions_all": 3,
+            "predictions_at_report_conf": 1,
+            "images_with_predictions_at_report_conf": 1,
+            "top_images_at_report_conf": [
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_ship\\ship_test_ir_1_5324.jpg",
+                "count": 1
+              }
+            ]
+          }
+        }
+      },
+      "test_bridge": {
+        "split": "test_bridge",
+        "image_count": 3,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 0,
+          "1": 3
+        },
+        "prediction_histogram_all": {
+          "0": 151,
+          "1": 32
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 4,
+          "1": 5
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            1
+          ],
+          "ap50": 0.863,
+          "map50_95": 0.7017075,
+          "precision": 0.3333333333333333,
+          "recall": 1.0,
+          "tp": 3,
+          "fp": 6,
+          "fn": 0,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "gt": 3,
+            "predictions_all": 32,
+            "ap50": 0.863,
+            "map50_95": 0.7017075,
+            "ap_by_iou": {
+              "0.50": 0.863,
+              "0.55": 0.863,
+              "0.60": 0.863,
+              "0.65": 0.863,
+              "0.70": 0.863,
+              "0.75": 0.6755187500000001,
+              "0.80": 0.6755187500000001,
+              "0.85": 0.6755187500000001,
+              "0.90": 0.6755187500000001,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 5,
+            "tp": 3,
+            "fp": 2,
+            "fn": 0,
+            "precision": 0.6,
+            "recall": 1.0
+          }
+        },
+        "off_target_false_positives": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "note": "This class has no GT in this split, so every prediction is an off-target false positive.",
+            "predictions_all": 151,
+            "images_with_predictions_all": 3,
+            "predictions_at_report_conf": 4,
+            "images_with_predictions_at_report_conf": 3,
+            "top_images_at_report_conf": [
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_bridge\\bridge_test_ir_ir_o01988873.png",
+                "count": 2
+              },
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_bridge\\bridge_test_sar_sar_021378.jpg",
+                "count": 1
+              },
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_bridge\\bridge_test_rgb_rgb_17912.jpg",
+                "count": 1
+              }
+            ]
+          }
+        }
+      },
+      "combined": {
+        "split": "combined",
+        "image_count": 6,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 10,
+          "1": 3
+        },
+        "prediction_histogram_all": {
+          "0": 192,
+          "1": 75
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 14,
+          "1": 6
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            0,
+            1
+          ],
+          "ap50": 0.8761363636363636,
+          "map50_95": 0.6247095796498146,
+          "precision": 0.65,
+          "recall": 1.0,
+          "tp": 13,
+          "fp": 7,
+          "fn": 0,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "gt": 10,
+            "predictions_all": 192,
+            "ap50": 0.9222727272727271,
+            "map50_95": 0.5666239592996289,
+            "ap_by_iou": {
+              "0.50": 0.9222727272727271,
+              "0.55": 0.9222727272727271,
+              "0.60": 0.9222727272727271,
+              "0.65": 0.7526808905380337,
+              "0.70": 0.7526808905380337,
+              "0.75": 0.6569454719387756,
+              "0.80": 0.4401748511904762,
+              "0.85": 0.16201743197278912,
+              "0.90": 0.08505208333333332,
+              "0.95": 0.04986979166666666
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 14,
+            "tp": 10,
+            "fp": 4,
+            "fn": 0,
+            "precision": 0.7142857142857143,
+            "recall": 1.0
+          },
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "gt": 3,
+            "predictions_all": 75,
+            "ap50": 0.8300000000000001,
+            "map50_95": 0.6827952,
+            "ap_by_iou": {
+              "0.50": 0.8300000000000001,
+              "0.55": 0.8300000000000001,
+              "0.60": 0.8300000000000001,
+              "0.65": 0.8300000000000001,
+              "0.70": 0.8300000000000001,
+              "0.75": 0.6694880000000001,
+              "0.80": 0.6694880000000001,
+              "0.85": 0.6694880000000001,
+              "0.90": 0.6694880000000001,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 6,
+            "tp": 3,
+            "fp": 3,
+            "fn": 0,
+            "precision": 0.5,
+            "recall": 1.0
+          }
+        },
+        "off_target_false_positives": {}
+      }
+    }
+  },
+  "new_weight_metrics": {
+    "ship": {
+      "test_ship": {
+        "split": "test_ship",
+        "image_count": 3,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 10,
+          "1": 0
+        },
+        "prediction_histogram_all": {
+          "0": 41,
+          "1": 0
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 10,
+          "1": 0
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            0
+          ],
+          "ap50": 0.995,
+          "map50_95": 0.6534646341463415,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "gt": 10,
+            "predictions_all": 41,
+            "ap50": 0.995,
+            "map50_95": 0.6534646341463415,
+            "ap_by_iou": {
+              "0.50": 0.995,
+              "0.55": 0.995,
+              "0.60": 0.995,
+              "0.65": 0.8888333333333333,
+              "0.70": 0.8888333333333333,
+              "0.75": 0.7937398373983742,
+              "0.80": 0.5722967479674798,
+              "0.85": 0.24008943089430895,
+              "0.90": 0.10725609756097562,
+              "0.95": 0.05859756097560976
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 10,
+            "tp": 10,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        },
+        "off_target_false_positives": {
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "note": "This class has no GT in this split, so every prediction is an off-target false positive.",
+            "predictions_all": 0,
+            "images_with_predictions_all": 0,
+            "predictions_at_report_conf": 0,
+            "images_with_predictions_at_report_conf": 0,
+            "top_images_at_report_conf": []
+          }
+        }
+      },
+      "test_bridge": {
+        "split": "test_bridge",
+        "image_count": 3,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 0,
+          "1": 3
+        },
+        "prediction_histogram_all": {
+          "0": 152,
+          "1": 0
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 4,
+          "1": 0
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            1
+          ],
+          "ap50": 0.0,
+          "map50_95": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 4,
+          "fn": 3,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "gt": 3,
+            "predictions_all": 0,
+            "ap50": 0.0,
+            "map50_95": 0.0,
+            "ap_by_iou": {
+              "0.50": 0.0,
+              "0.55": 0.0,
+              "0.60": 0.0,
+              "0.65": 0.0,
+              "0.70": 0.0,
+              "0.75": 0.0,
+              "0.80": 0.0,
+              "0.85": 0.0,
+              "0.90": 0.0,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 3,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        },
+        "off_target_false_positives": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "note": "This class has no GT in this split, so every prediction is an off-target false positive.",
+            "predictions_all": 152,
+            "images_with_predictions_all": 3,
+            "predictions_at_report_conf": 4,
+            "images_with_predictions_at_report_conf": 3,
+            "top_images_at_report_conf": [
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_bridge\\bridge_test_ir_ir_o01988873.png",
+                "count": 2
+              },
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_bridge\\bridge_test_sar_sar_021378.jpg",
+                "count": 1
+              },
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_bridge\\bridge_test_rgb_rgb_17912.jpg",
+                "count": 1
+              }
+            ]
+          }
+        }
+      },
+      "combined": {
+        "split": "combined",
+        "image_count": 6,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 10,
+          "1": 3
+        },
+        "prediction_histogram_all": {
+          "0": 193,
+          "1": 0
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 14,
+          "1": 0
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            0,
+            1
+          ],
+          "ap50": 0.46113636363636357,
+          "map50_95": 0.28330649470810465,
+          "precision": 0.7142857142857143,
+          "recall": 0.7692307692307693,
+          "tp": 10,
+          "fp": 4,
+          "fn": 3,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "gt": 10,
+            "predictions_all": 193,
+            "ap50": 0.9222727272727271,
+            "map50_95": 0.5666129894162093,
+            "ap_by_iou": {
+              "0.50": 0.9222727272727271,
+              "0.55": 0.9222727272727271,
+              "0.60": 0.9222727272727271,
+              "0.65": 0.7526808905380337,
+              "0.70": 0.7526808905380337,
+              "0.75": 0.656932113778154,
+              "0.80": 0.4401455711818407,
+              "0.85": 0.1619845088294385,
+              "0.90": 0.08503022452504318,
+              "0.95": 0.04985751295336788
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 14,
+            "tp": 10,
+            "fp": 4,
+            "fn": 0,
+            "precision": 0.7142857142857143,
+            "recall": 1.0
+          },
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "gt": 3,
+            "predictions_all": 0,
+            "ap50": 0.0,
+            "map50_95": 0.0,
+            "ap_by_iou": {
+              "0.50": 0.0,
+              "0.55": 0.0,
+              "0.60": 0.0,
+              "0.65": 0.0,
+              "0.70": 0.0,
+              "0.75": 0.0,
+              "0.80": 0.0,
+              "0.85": 0.0,
+              "0.90": 0.0,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 3,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        },
+        "off_target_false_positives": {}
+      }
+    },
+    "bridge": {
+      "test_ship": {
+        "split": "test_ship",
+        "image_count": 3,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 10,
+          "1": 0
+        },
+        "prediction_histogram_all": {
+          "0": 0,
+          "1": 900
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 0,
+          "1": 0
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            0
+          ],
+          "ap50": 0.0,
+          "map50_95": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 10,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "gt": 10,
+            "predictions_all": 0,
+            "ap50": 0.0,
+            "map50_95": 0.0,
+            "ap_by_iou": {
+              "0.50": 0.0,
+              "0.55": 0.0,
+              "0.60": 0.0,
+              "0.65": 0.0,
+              "0.70": 0.0,
+              "0.75": 0.0,
+              "0.80": 0.0,
+              "0.85": 0.0,
+              "0.90": 0.0,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 10,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        },
+        "off_target_false_positives": {
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "note": "This class has no GT in this split, so every prediction is an off-target false positive.",
+            "predictions_all": 900,
+            "images_with_predictions_all": 3,
+            "predictions_at_report_conf": 0,
+            "images_with_predictions_at_report_conf": 0,
+            "top_images_at_report_conf": []
+          }
+        }
+      },
+      "test_bridge": {
+        "split": "test_bridge",
+        "image_count": 3,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 0,
+          "1": 3
+        },
+        "prediction_histogram_all": {
+          "0": 0,
+          "1": 900
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 0,
+          "1": 0
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            1
+          ],
+          "ap50": 0.008399486510393631,
+          "map50_95": 0.0037649879853085405,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 3,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "gt": 3,
+            "predictions_all": 900,
+            "ap50": 0.008399486510393631,
+            "map50_95": 0.0037649879853085405,
+            "ap_by_iou": {
+              "0.50": 0.008399486510393631,
+              "0.55": 0.008399486510393631,
+              "0.60": 0.008149621118012422,
+              "0.65": 0.0063506428571428585,
+              "0.70": 0.0063506428571428585,
+              "0.75": 0.0,
+              "0.80": 0.0,
+              "0.85": 0.0,
+              "0.90": 0.0,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 3,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        },
+        "off_target_false_positives": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "note": "This class has no GT in this split, so every prediction is an off-target false positive.",
+            "predictions_all": 0,
+            "images_with_predictions_all": 0,
+            "predictions_at_report_conf": 0,
+            "images_with_predictions_at_report_conf": 0,
+            "top_images_at_report_conf": []
+          }
+        }
+      },
+      "combined": {
+        "split": "combined",
+        "image_count": 6,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 10,
+          "1": 3
+        },
+        "prediction_histogram_all": {
+          "0": 0,
+          "1": 1800
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 0,
+          "1": 0
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            0,
+            1
+          ],
+          "ap50": 0.0016869194257452948,
+          "map50_95": 0.0007505341386987547,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 13,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "gt": 10,
+            "predictions_all": 0,
+            "ap50": 0.0,
+            "map50_95": 0.0,
+            "ap_by_iou": {
+              "0.50": 0.0,
+              "0.55": 0.0,
+              "0.60": 0.0,
+              "0.65": 0.0,
+              "0.70": 0.0,
+              "0.75": 0.0,
+              "0.80": 0.0,
+              "0.85": 0.0,
+              "0.90": 0.0,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 10,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "gt": 3,
+            "predictions_all": 1800,
+            "ap50": 0.0033738388514905895,
+            "map50_95": 0.0015010682773975094,
+            "ap_by_iou": {
+              "0.50": 0.0033738388514905895,
+              "0.55": 0.0033738388514905895,
+              "0.60": 0.0032738154158215003,
+              "0.65": 0.0024945948275862076,
+              "0.70": 0.0024945948275862076,
+              "0.75": 0.0,
+              "0.80": 0.0,
+              "0.85": 0.0,
+              "0.90": 0.0,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 3,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        },
+        "off_target_false_positives": {}
+      }
+    },
+    "fusion": {
+      "test_ship": {
+        "split": "test_ship",
+        "image_count": 3,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 10,
+          "1": 0
+        },
+        "prediction_histogram_all": {
+          "0": 41,
+          "1": 801
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 10,
+          "1": 0
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            0
+          ],
+          "ap50": 0.995,
+          "map50_95": 0.6534646341463415,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "gt": 10,
+            "predictions_all": 41,
+            "ap50": 0.995,
+            "map50_95": 0.6534646341463415,
+            "ap_by_iou": {
+              "0.50": 0.995,
+              "0.55": 0.995,
+              "0.60": 0.995,
+              "0.65": 0.8888333333333333,
+              "0.70": 0.8888333333333333,
+              "0.75": 0.7937398373983742,
+              "0.80": 0.5722967479674798,
+              "0.85": 0.24008943089430895,
+              "0.90": 0.10725609756097562,
+              "0.95": 0.05859756097560976
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 10,
+            "tp": 10,
+            "fp": 0,
+            "fn": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        },
+        "off_target_false_positives": {
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "note": "This class has no GT in this split, so every prediction is an off-target false positive.",
+            "predictions_all": 801,
+            "images_with_predictions_all": 3,
+            "predictions_at_report_conf": 0,
+            "images_with_predictions_at_report_conf": 0,
+            "top_images_at_report_conf": []
+          }
+        }
+      },
+      "test_bridge": {
+        "split": "test_bridge",
+        "image_count": 3,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 0,
+          "1": 3
+        },
+        "prediction_histogram_all": {
+          "0": 151,
+          "1": 866
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 4,
+          "1": 0
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            1
+          ],
+          "ap50": 0.008643527119909959,
+          "map50_95": 0.003861095217432946,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0,
+          "fp": 4,
+          "fn": 3,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "gt": 3,
+            "predictions_all": 866,
+            "ap50": 0.008643527119909959,
+            "map50_95": 0.003861095217432946,
+            "ap_by_iou": {
+              "0.50": 0.008643527119909959,
+              "0.55": 0.008643527119909959,
+              "0.60": 0.008376144417818383,
+              "0.65": 0.006473876758345581,
+              "0.70": 0.006473876758345581,
+              "0.75": 0.0,
+              "0.80": 0.0,
+              "0.85": 0.0,
+              "0.90": 0.0,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 3,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        },
+        "off_target_false_positives": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "note": "This class has no GT in this split, so every prediction is an off-target false positive.",
+            "predictions_all": 151,
+            "images_with_predictions_all": 3,
+            "predictions_at_report_conf": 4,
+            "images_with_predictions_at_report_conf": 3,
+            "top_images_at_report_conf": [
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_bridge\\bridge_test_ir_ir_o01988873.png",
+                "count": 2
+              },
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_bridge\\bridge_test_sar_sar_021378.jpg",
+                "count": 1
+              },
+              {
+                "image": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation\\images\\test_bridge\\bridge_test_rgb_rgb_17912.jpg",
+                "count": 1
+              }
+            ]
+          }
+        }
+      },
+      "combined": {
+        "split": "combined",
+        "image_count": 6,
+        "classes": {
+          "0": "ship",
+          "1": "bridge"
+        },
+        "gt_histogram": {
+          "0": 10,
+          "1": 3
+        },
+        "prediction_histogram_all": {
+          "0": 192,
+          "1": 1667
+        },
+        "prediction_histogram_at_report_conf": {
+          "0": 14,
+          "1": 0
+        },
+        "iou_thresholds": [
+          0.5,
+          0.55,
+          0.6,
+          0.65,
+          0.7,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          0.95
+        ],
+        "report_conf": 0.25,
+        "overall": {
+          "ap_classes": [
+            0,
+            1
+          ],
+          "ap50": 0.46295102261019966,
+          "map50_95": 0.28411528389832863,
+          "precision": 0.7142857142857143,
+          "recall": 0.7692307692307693,
+          "tp": 10,
+          "fp": 4,
+          "fn": 3,
+          "note": "AP is macro-averaged over classes with GT. Overall fixed-threshold P/R includes both final classes, so off-target expert predictions are counted as FP."
+        },
+        "per_class": {
+          "0": {
+            "class_id": 0,
+            "class_name": "ship",
+            "gt": 10,
+            "predictions_all": 192,
+            "ap50": 0.9222727272727271,
+            "map50_95": 0.5666239592996289,
+            "ap_by_iou": {
+              "0.50": 0.9222727272727271,
+              "0.55": 0.9222727272727271,
+              "0.60": 0.9222727272727271,
+              "0.65": 0.7526808905380337,
+              "0.70": 0.7526808905380337,
+              "0.75": 0.6569454719387756,
+              "0.80": 0.4401748511904762,
+              "0.85": 0.16201743197278912,
+              "0.90": 0.08505208333333332,
+              "0.95": 0.04986979166666666
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 14,
+            "tp": 10,
+            "fp": 4,
+            "fn": 0,
+            "precision": 0.7142857142857143,
+            "recall": 1.0
+          },
+          "1": {
+            "class_id": 1,
+            "class_name": "bridge",
+            "gt": 3,
+            "predictions_all": 1667,
+            "ap50": 0.003629317947672196,
+            "map50_95": 0.0016066084970282704,
+            "ap_by_iou": {
+              "0.50": 0.003629317947672196,
+              "0.55": 0.003629317947672196,
+              "0.60": 0.0035190377061171856,
+              "0.65": 0.002644205684410563,
+              "0.70": 0.002644205684410563,
+              "0.75": 0.0,
+              "0.80": 0.0,
+              "0.85": 0.0,
+              "0.90": 0.0,
+              "0.95": 0.0
+            },
+            "report_conf": 0.25,
+            "predictions_at_report_conf": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 3,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        },
+        "off_target_false_positives": {}
+      }
+    }
+  },
+  "new_candidates": {
+    "ship": 193,
+    "bridge": 1800,
+    "fusion": 1859
+  },
+  "base_file_unchanged": true,
+  "base_parameters_sha256": "efdacdb5459168e02b8f3c959da54f8b7d3fed004b8bb1fa98d19788f4a897c1",
+  "entry_checks": [
+    {
+      "name": "base_cli",
+      "argv": [
+        "C:\\Users\\DOCTOR\\anaconda3\\envs\\y8distill\\python.exe",
+        "-B",
+        "tools/eval/eval_yoloeseg_box_only.py",
+        "--weights",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\best.pt",
+        "--data",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\entry_checks\\ship.yaml",
+        "--imgsz",
+        "640",
+        "--device",
+        "cpu",
+        "--batch",
+        "1",
+        "--conf",
+        "0.001",
+        "--pred-iou",
+        "0.7",
+        "--match-iou",
+        "0.5",
+        "--strict-label",
+        "--out-dir",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\entry_checks\\base_cli"
+      ],
+      "exit_code": 0,
+      "log": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\entry_checks\\base_cli.log"
+    },
+    {
+      "name": "fusion_cli",
+      "argv": [
+        "C:\\Users\\DOCTOR\\anaconda3\\envs\\y8distill\\python.exe",
+        "-B",
+        "tools/eval/eval_late_fusion_ship_bridge.py",
+        "--ship-weights",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\best.pt",
+        "--bridge-weights",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\clean_smoke\\acceptance_20260918_final\\training\\expert\\weights\\last.pt",
+        "--dataset-root",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\fixtures\\data\\evaluation",
+        "--imgsz",
+        "1024",
+        "--batch",
+        "2",
+        "--device",
+        "0",
+        "--ship-conf",
+        "0.001",
+        "--bridge-conf",
+        "0.001",
+        "--nms-iou",
+        "0.7",
+        "--report-conf",
+        "0.25",
+        "--project",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\entry_checks",
+        "--name",
+        "fusion_cli",
+        "--save-preds"
+      ],
+      "exit_code": 0,
+      "log": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\entry_checks\\fusion_cli.log"
+    },
+    {
+      "name": "external_cli",
+      "argv": [
+        "C:\\Users\\DOCTOR\\anaconda3\\envs\\y8distill\\python.exe",
+        "-B",
+        "tools/eval/eval_bridge_expert_external_yolov8.py",
+        "--weights",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\runs\\bridge_expert\\yolov8m_total_bridge_split_img1024_ep150\\weights\\best.pt",
+        "--data",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\entry_checks\\bridge.yaml",
+        "--imgsz",
+        "1024",
+        "--batch",
+        "2",
+        "--device",
+        "0",
+        "--conf",
+        "0.25",
+        "--iou",
+        "0.7",
+        "--project",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\entry_checks",
+        "--name",
+        "external_cli",
+        "--save-json",
+        "--save-md",
+        "--save-preds",
+        "--max-vis",
+        "0",
+        "--max-gt-preview",
+        "0"
+      ],
+      "exit_code": 0,
+      "log": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\entry_checks\\external_cli.log"
+    },
+    {
+      "name": "heldout_cli",
+      "argv": [
+        "C:\\Users\\DOCTOR\\anaconda3\\envs\\y8distill\\python.exe",
+        "-B",
+        "tools/eval/eval_bridge_expert_total_bridge_test.py",
+        "--weights",
+        "C:/Users/DOCTOR/Documents/GitHub/YOLOv8/runs/bridge_expert/yolov8m_total_bridge_split_img1024_ep150/weights/best.pt",
+        "--test-root",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\entry_checks\\heldout_data",
+        "--imgsz",
+        "1024",
+        "--batch",
+        "2",
+        "--conf-list",
+        "0.05",
+        "0.10",
+        "0.20",
+        "0.25",
+        "0.35",
+        "0.50",
+        "--iou",
+        "0.7",
+        "--device",
+        "0",
+        "--out-dir",
+        "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\entry_checks\\heldout_cli"
+      ],
+      "exit_code": 0,
+      "log": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8_distill_pipeline_clean\\runs\\migration\\entry_checks\\heldout_cli.log"
+    }
+  ],
+  "pseudo_check": {
+    "mode": "generated",
+    "teacher_weights": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\best.pt",
+    "teacher_names": [
+      "ship",
+      "harbor",
+      "tank"
+    ],
+    "set_classes_used_embeddings": true,
+    "images": 3,
+    "boxes": 6,
+    "empty_labels": 0,
+    "empty_label_images": [],
+    "score_channels": [
+      3
+    ],
+    "all_class_post_nms_boxes": 6,
+    "conf": 0.25,
+    "iou": 0.7,
+    "imgsz": 1024,
+    "device": "cuda:0",
+    "teacher_frozen": true,
+    "images_selected": [
+      "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_small_split\\images\\train\\rgb_1026.jpg",
+      "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_small_split\\images\\train\\sar_0000214.jpg",
+      "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8\\ultralytics\\datasets\\ship_small_split\\images\\train\\ir_1_1026.jpg"
+    ]
+  },
+  "original_integrity": {
+    "source": "C:\\Users\\DOCTOR\\Documents\\GitHub\\YOLOv8",
+    "files_checked": 25844,
+    "scope": "all files except .git, .venv and __pycache__; sizes and modification timestamps; weight SHA256 separately recorded",
+    "changes": {},
+    "git_status": "",
+    "branch": "bridge_clean_official",
+    "head": "736cb86c865fa490e9ae77e3189b8098825897fd"
+  },
+  "restored_from_source": [],
+  "removed_files": [
+    "configs/datasets/external_bridge_2cls_eval.yaml",
+    "configs/datasets/external_ship_2cls_eval.yaml",
+    "configs/datasets/external_ship_bridge_2cls_eval.yaml",
+    "configs/datasets/global4_eval_ship_extratest_all.yaml",
+    "configs/datasets/global4_eval_ship_extratest_ir.yaml",
+    "configs/datasets/global4_eval_ship_extratest_rgb.yaml",
+    "configs/datasets/global4_eval_ship_extratest_sar.yaml",
+    "configs/datasets/student2_eval_bridge_extratest_all.yaml",
+    "configs/datasets/student2_eval_bridge_extratest_ir.yaml",
+    "configs/datasets/student2_eval_bridge_extratest_rgb.yaml",
+    "configs/datasets/student2_eval_bridge_extratest_sar.yaml",
+    "configs/global4_eval_bridge_all.yaml",
+    "configs/global4_eval_bridge_infr.yaml",
+    "configs/global4_eval_bridge_rgb.yaml",
+    "configs/global4_eval_bridge_sar.yaml",
+    "configs/global4_eval_ship.yaml",
+    "configs/global4_train_ship_bridge.yaml",
+    "docs/teacher_ship_external_eval.csv",
+    "docs/teacher_ship_external_eval.md",
+    "tools/check/__pycache__/check_total_bridge_split.cpython-310.pyc",
+    "tools/datasets/__pycache__/make_bridge_ship_distill_2cls.cpython-310.pyc",
+    "tools/datasets/__pycache__/split_total_bridge_train_val_test.cpython-310.pyc",
+    "tools/datasets/changebridge2one.py",
+    "tools/datasets/make_bridge_ship_distill_2cls.py",
+    "tools/distill/__pycache__/export_teacher_ship_pseudo.cpython-310.pyc",
+    "tools/distill/export_teacher_ship_pseudo.py",
+    "tools/eval/__pycache__/eval_bridge_expert_total_bridge_test.cpython-310.pyc",
+    "tools/eval/__pycache__/eval_teacher_ship_external.cpython-310.pyc",
+    "tools/eval/__pycache__/eval_yoloeseg_box_only.cpython-310.pyc",
+    "tools/eval/__pycache__/probe_yoloeseg_detect_like_val.cpython-310.pyc",
+    "tools/eval/probe_yoloeseg_detect_like_val.py",
+    "tools/export/__pycache__/export_bridge_predictions_json.cpython-310.pyc",
+    "tools/export/export_bridge_predictions_json.py",
+    "tools/model/__pycache__/inspect_yoloe_bestpt.cpython-39.pyc",
+    "tools/model/inspect_yoloe_bestpt.py",
+    "tools/probe/__pycache__/probe_student_2cls_score_channels.cpython-310.pyc",
+    "tools/probe/__pycache__/probe_yoloeseg_global4_ship_preserve.cpython-310.pyc",
+    "tools/probe/probe_student_2cls_score_channels.py",
+    "tools/probe/probe_yoloeseg_global4_ship_preserve.py",
+    "tools/train/__pycache__/init_and_smoke_train_yoloe_2cls_student.cpython-310.pyc",
+    "tools/train/__pycache__/train_bridge_expert_yolo.cpython-310.pyc",
+    "tools/train/__pycache__/train_eval_yoloe_2cls_detect_100ep.cpython-310.pyc",
+    "tools/train/init_and_smoke_train_yoloe_2cls_student.py",
+    "tools/train/init_yolov8m_2cls_from_bridge_expert.py",
+    "tools/train/train_eval_yoloe_2cls_detect_100ep.py",
+    "tools/train/train_eval_yoloeseg_global4_boxonly_100ep.py",
+    "tools/train/train_yolov8m_2cls_from_bridge_init.py",
+    "ultralytics/configs/global4_train_ship_bridge.yaml",
+    "tools/datasets/yaml切分.py",
+    "tools/datasets/label检查.py",
+    "tools/datasets/内外部数据集一致性检查.py",
+    "tools/datasets/额外的bridge不同源数据集分离.py",
+    "ultralytics/数据集文件切分.py",
+    "项目重整记录.md"
+  ],
+  "known_environment_issues": [
+    "pip check exit 1: pre-existing opencv-python 4.13.0.92 requires numpy>=2 but installed numpy is 1.26.4; verified runtime succeeds; environment not changed",
+    "First exploratory AMP check skipped loading its unrelated YOLO26n check model; final smoke uses FP32; no added student or teacher"
+  ],
+  "kd": "No soft/logit KD, box KD, selective response KD, calibration or reliability gate is implemented in the current chain"
+}

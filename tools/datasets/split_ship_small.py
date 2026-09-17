@@ -57,7 +57,7 @@ def convert_label_to_yolo5(src_label: Path, dst_label: Path, force_class: int = 
         cls x1 y1 x2 y2 x3 y3 x4 y4
 
     Output class id is forced to force_class.
-    For ship in global4, force_class = 0.
+    For ship labels, force_class = 0.
     """
     dst_label.parent.mkdir(parents=True, exist_ok=True)
 

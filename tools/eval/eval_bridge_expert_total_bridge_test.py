@@ -13,6 +13,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "ultralytics"))
 sys.path.insert(1, str(PROJECT_ROOT))
 
+from tools.clean_pipeline.runtime import setup_runtime, assert_local_imports
+
+setup_runtime()
+
 DEFAULT_RUN = Path("runs/bridge_expert/yolov8m_total_bridge_split_img1024_ep150")
 DEFAULT_TEST = "ultralytics/datasets/total_bridge_test"
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
@@ -193,11 +197,12 @@ def main() -> int:
     args = parser.parse_args()
 
     from ultralytics import YOLO
+    assert_local_imports()
 
     weights = resolve_path(args.weights)
     test_root = resolve_path(args.test_root)
     out_dir = resolve_path(args.out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=False)
     groups = {m.upper(): list_images(test_root / "images" / f"test_{m}") for m in MODALITIES}
     gt_groups = {}
     for name, imgs in groups.items():
@@ -205,6 +210,10 @@ def main() -> int:
         gt_groups[name] = {str(img.resolve()): read_gt(label_dir / f"{img.stem}.txt", img) for img in imgs}
 
     model = YOLO(str(weights))
+    names = model.model.names
+    names = dict(enumerate(names)) if isinstance(names, list) else {int(k): v for k, v in names.items()}
+    if model.task != "detect" or model.model.model[-1].nc != 1 or names != {0: "bridge"}:
+        raise ValueError(f"Expected a one-class Detect bridge expert, got {model.task}, {names}")
     summary = {
         "note": "This is total_bridge internal hold-out test. It was not used for training. Not an external bridge generalization conclusion.",
         "weights_input": args.weights,

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
+import shutil
 import sys
 from collections import Counter
 from datetime import datetime
@@ -22,7 +24,13 @@ for _path in (str(PACKAGE_ROOT.resolve()), str(PROJECT_ROOT.resolve())):
 sys.path.insert(0, str(PACKAGE_ROOT.resolve()))
 sys.path.insert(1, str(PROJECT_ROOT.resolve()))
 
+from tools.clean_pipeline.runtime import setup_runtime, assert_local_imports
+
+setup_runtime()
+
 from ultralytics import YOLO  # noqa: E402
+
+assert_local_imports()
 
 
 IMAGE_SUFFIXES = {".bmp", ".dng", ".jpeg", ".jpg", ".mpo", ".png", ".tif", ".tiff", ".webp"}
@@ -53,6 +61,28 @@ def to_jsonable(value: Any) -> Any:
 
 def mkdir(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def isolate_validation_data(images: list[Path], run_dir: Path) -> Path:
+    """Keep official-validator label caches beside copied labels inside this run."""
+    root = run_dir / "runtime_dataset"
+    image_dir = mkdir(root / "images" / "test")
+    label_dir = mkdir(root / "labels" / "test")
+    for index, source in enumerate(images):
+        name = f"{index:08d}_{source.stem}"
+        target = image_dir / f"{name}{source.suffix.lower()}"
+        if not target.exists():
+            try:
+                os.link(source, target)
+            except OSError:
+                shutil.copy2(source, target)
+        shutil.copy2(label_for_image(source), label_dir / f"{name}.txt")
+    path = root / "data.yaml"
+    path.write_text(yaml.safe_dump({
+        "path": str(root.resolve()), "train": "images/test", "val": "images/test",
+        "test": "images/test", "nc": 1, "names": {0: "bridge"},
+    }, sort_keys=False), encoding="utf-8")
     return path
 
 
@@ -577,8 +607,7 @@ def main() -> None:
     project = resolve_path(args.project)
     run_dir = project / args.name
     if run_dir.exists() and not args.exist_ok:
-        # Do not delete old evaluations; reuse directory and overwrite known summary files only.
-        print(f"[WARN] Output directory exists, known output files may be overwritten: {run_dir}", flush=True)
+        raise FileExistsError(f"Use a new --name or explicitly pass --exist-ok: {run_dir}")
     mkdir(run_dir)
     predictions_dir = mkdir(run_dir / "predictions")
     vis_dir = mkdir(run_dir / "vis")
@@ -623,9 +652,11 @@ def main() -> None:
         )
     print(f"[INFO] Model OK: task={model_task}, model={model_name}, head={head_name}, nc={head_nc}, names={model_names}", flush=True)
 
-    print("[INFO] Running Ultralytics official val on split=test (AP conf=0.001)...", flush=True)
+    runtime_data = isolate_validation_data(images, run_dir)
+    assert_local_imports()
+    print("[INFO] Running Ultralytics official val on isolated split=test (AP conf=0.001)...", flush=True)
     val_metrics = model.val(
-        data=str(data_yaml),
+        data=str(runtime_data),
         split="test",
         imgsz=args.imgsz,
         batch=args.batch,
@@ -644,7 +675,7 @@ def main() -> None:
     predictions = collect_predictions(model, images, args.imgsz, args.device, args.conf, args.iou, args.batch)
     fixed_metrics, per_image = match_fixed_conf(ground_truth, predictions)
 
-    predictions_jsonl = predictions_dir / "predictions_conf025.jsonl"
+    predictions_jsonl = predictions_dir / f"predictions_conf{args.conf:g}.jsonl"
     if args.save_preds:
         save_predictions_jsonl(predictions_jsonl, images, predictions)
     gt_preview_dir = resolve_path(args.gt_preview_dir) if args.gt_preview_dir else (run_dir / "gt_preview")
@@ -670,6 +701,7 @@ def main() -> None:
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "weights": str(weights),
         "data": str(data_yaml),
+        "runtime_validation_data": str(runtime_data),
         "image_dir": str(image_dirs[0]) if len(image_dirs) == 1 else None,
         "test_image_dirs": [str(path) for path in image_dirs],
         "split": "test",

@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-Create bridge external extra-test dataset for the current 2-class YOLOE student.
+Create bridge external extra-test dataset for the ship/bridge evaluation mapping.
 
-Current student class space:
+Evaluation class space:
   0 ship
   1 bridge
 
@@ -41,16 +41,16 @@ Output structure:
     selection_summary.json
 
 Also writes optional config YAMLs:
-  configs/datasets/student2_eval_bridge_extratest_sar.yaml
-  configs/datasets/student2_eval_bridge_extratest_ir.yaml
-  configs/datasets/student2_eval_bridge_extratest_all.yaml
+  configs/datasets/bridge_external_sar.yaml
+  configs/datasets/bridge_external_ir.yaml
+  configs/datasets/bridge_external_all.yaml
 
 Important:
   - Does NOT modify source datasets.
   - Does NOT modify E:/YOLODATA/bridgeAll.
   - Does NOT train.
   - Forces every output label class id to 1, because bridge is class 1
-    in the current 2-class student.
+    in the ship/bridge evaluation mapping.
   - Excludes overlap against bridgeAll by exact filename, exact stem,
     and normalized numeric/source IDs extracted from filenames.
 """
@@ -76,7 +76,7 @@ from PIL import Image
 # Defaults
 # =============================================================================
 
-REPO_ROOT = Path(r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8")
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 SAR_IMAGE_ROOTS = [
     Path(r"E:\YOLODATA\bridge_sar_msar_yolo_cls3_300\images\train"),
@@ -97,7 +97,7 @@ PER_MODALITY = 100
 SEED = 42
 TARGET_CLASS_ID = 1
 
-STUDENT2_NAMES = {
+EVAL_NAMES = {
     0: "ship",
     1: "bridge",
 }
@@ -753,9 +753,9 @@ def write_manifest(dst_root: Path, rows: List[Dict[str, str]]) -> Path:
     return path
 
 
-def write_student2_yaml(yaml_path: Path, val_image_dirs: List[Path]) -> None:
+def write_eval_yaml(yaml_path: Path, val_image_dirs: List[Path]) -> None:
     """
-    Write 2-class eval YAML for current student:
+    Write 2-class eval YAML for ship/bridge evaluation mapping:
       0 ship
       1 bridge
 
@@ -776,7 +776,7 @@ def write_student2_yaml(yaml_path: Path, val_image_dirs: List[Path]) -> None:
     lines.append("nc: 2")
     lines.append("")
     lines.append("names:")
-    for k, v in STUDENT2_NAMES.items():
+    for k, v in EVAL_NAMES.items():
         lines.append(f"  {k}: {v}")
     lines.append("")
 
@@ -796,18 +796,18 @@ def write_yamls(dst_root: Path, configs_root: Path) -> Dict[str, str]:
     }
 
     config_yamls = {
-        "sar_config": configs_root / "student2_eval_bridge_extratest_sar.yaml",
-        "ir_config": configs_root / "student2_eval_bridge_extratest_ir.yaml",
-        "all_config": configs_root / "student2_eval_bridge_extratest_all.yaml",
+        "sar_config": configs_root / "bridge_external_sar.yaml",
+        "ir_config": configs_root / "bridge_external_ir.yaml",
+        "all_config": configs_root / "bridge_external_all.yaml",
     }
 
-    write_student2_yaml(dataset_yamls["sar"], [sar_dir])
-    write_student2_yaml(dataset_yamls["ir"], [ir_dir])
-    write_student2_yaml(dataset_yamls["all"], [sar_dir, ir_dir])
+    write_eval_yaml(dataset_yamls["sar"], [sar_dir])
+    write_eval_yaml(dataset_yamls["ir"], [ir_dir])
+    write_eval_yaml(dataset_yamls["all"], [sar_dir, ir_dir])
 
-    write_student2_yaml(config_yamls["sar_config"], [sar_dir])
-    write_student2_yaml(config_yamls["ir_config"], [ir_dir])
-    write_student2_yaml(config_yamls["all_config"], [sar_dir, ir_dir])
+    write_eval_yaml(config_yamls["sar_config"], [sar_dir])
+    write_eval_yaml(config_yamls["ir_config"], [ir_dir])
+    write_eval_yaml(config_yamls["all_config"], [sar_dir, ir_dir])
 
     return {k: str(v) for k, v in {**dataset_yamls, **config_yamls}.items()}
 
@@ -921,7 +921,7 @@ def main() -> int:
     log(f"configs_root    = {configs_root}")
     log(f"per_modality    = {args.per_modality}")
     log(f"seed            = {args.seed}")
-    log(f"target_class    = {args.target_class}  # bridge in current 2-class student")
+    log(f"target_class    = {args.target_class}  # bridge in ship/bridge evaluation mapping")
     log(f"hash_check      = {args.hash_check}")
     log(f"dry_run         = {args.dry_run}")
     log("=" * 100)
@@ -1032,9 +1032,9 @@ def main() -> int:
         "manifest_csv": str(manifest_path),
         "output_dataset": str(dst_root),
         "target_class_for_bridge": args.target_class,
-        "student2_names": STUDENT2_NAMES,
+        "eval_names": EVAL_NAMES,
         "notes": [
-            "This dataset is for current 2-class student: 0 ship, 1 bridge.",
+            "This dataset is for ship/bridge evaluation mapping: 0 ship, 1 bridge.",
             "All output labels are forced to class 1.",
             "RGB/DIOR XML source is intentionally not processed in this script.",
             "Overlap is excluded against E:/YOLODATA/bridgeAll by filename, stem, source-id keys, and optionally sha1.",

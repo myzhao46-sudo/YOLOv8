@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import argparse
 import json
+import math
 from datetime import datetime
 from pathlib import Path
 
@@ -14,9 +15,6 @@ sys.path.insert(1, str(PROJECT_ROOT))
 DEFAULT_PROJECT = "runs/bridge_expert"
 DEFAULT_NAME = "yolov8m_total_bridge_split_img1024_ep150"
 DEFAULT_DATA = "configs/datasets/total_bridge_trainval.yaml"
-DEFAULT_TRAINVAL = "ultralytics/datasets/total_bridge_trainval"
-DEFAULT_TEST = "ultralytics/datasets/total_bridge_test"
-DEFAULT_SPLIT_CHECK = "runs/bridge_expert/split_check/total_bridge_split_check.json"
 
 
 def resolve_path(path: str | Path) -> Path:
@@ -32,21 +30,119 @@ def project_rel(path: Path) -> str:
 
 
 def make_runtime_data_yaml(data_yaml: Path, project_dir: Path) -> Path:
-    try:
-        import yaml
+    import yaml
 
-        data = yaml.safe_load(data_yaml.read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            raise ValueError(f"Dataset YAML is not a mapping: {data_yaml}")
-        source_path = Path(data.get("path", ""))
-        data["path"] = str(resolve_path(source_path).resolve()) if source_path else str(data_yaml.parent.resolve())
-        project_dir.mkdir(parents=True, exist_ok=True)
-        runtime_yaml = project_dir / "runtime_total_bridge_trainval.yaml"
-        runtime_yaml.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
-        return runtime_yaml
-    except Exception:
-        # Fallback keeps the user-provided path if PyYAML is unavailable or malformed.
-        return data_yaml
+    data = yaml.safe_load(data_yaml.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"Dataset YAML is not a mapping: {data_yaml}")
+    source_path = data.get("path")
+    data["path"] = str(resolve_path(source_path).resolve()) if source_path else str(data_yaml.parent.resolve())
+    if not data.get("train") or not data.get("val"):
+        raise ValueError(f"Dataset YAML must define the existing train and val splits: {data_yaml}")
+    names = data.get("names", {})
+    if isinstance(names, list):
+        names = dict(enumerate(names))
+    names = {int(key): value for key, value in names.items()}
+    if names != {0: "bridge"} or int(data.get("nc", 1)) != 1:
+        raise ValueError(f"Bridge expert requires nc=1 and names={{0: 'bridge'}}, got {names}")
+    project_dir.mkdir(parents=True, exist_ok=True)
+    # All new caches belong to this checkout, including formal runs on external data.
+    if not Path(data["path"]).is_relative_to(PROJECT_ROOT):
+        from tools.clean_pipeline.data import isolate_training_data
+        data = isolate_training_data(data, project_dir / "dataset")
+    runtime_yaml = project_dir / "runtime_total_bridge_trainval.yaml"
+    runtime_yaml.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    return runtime_yaml
+
+
+class TrainingUpdateAudit:
+    """Observe the original trainer and optimizer without changing their computations."""
+
+    def __init__(self):
+        self.result = {
+            "optimizer_steps": 0,
+            "batches": 0,
+            "finite_loss": True,
+            "finite_gradients": True,
+            "parameter_in_optimizer": False,
+            "parameter_max_abs_diff": 0.0,
+            "gradient_max_abs": 0.0,
+            "losses": [],
+            "passed": False,
+        }
+        self.parameter = None
+        self.before = None
+        self.handles = []
+
+    def on_train_start(self, trainer):
+        from ultralytics.utils.torch_utils import unwrap_model
+
+        candidates = ((name, value) for name, value in unwrap_model(trainer.model).named_parameters()
+                      if value.requires_grad)
+        name, self.parameter = next(candidates)
+        self.before = self.parameter.detach().float().cpu().clone()
+        self.result["parameter_name"] = name
+        self.result["parameter_shape"] = list(self.parameter.shape)
+        self.result["parameter_in_optimizer"] = any(
+            value is self.parameter for group in trainer.optimizer.param_groups for value in group["params"]
+        )
+        if not self.result["parameter_in_optimizer"]:
+            raise RuntimeError(f"Expected trainable parameter is missing from optimizer: {name}")
+        # Optimizer hooks count actual steps, including AMP's decision to skip a step.
+        self.handles = [
+            trainer.optimizer.register_step_pre_hook(self.before_optimizer_step),
+            trainer.optimizer.register_step_post_hook(self.after_optimizer_step),
+        ]
+
+    def before_optimizer_step(self, optimizer, args, kwargs):
+        import torch
+
+        gradient = self.parameter.grad
+        if gradient is None:
+            raise RuntimeError("Audited trainable parameter did not receive a gradient")
+        finite = bool(torch.isfinite(gradient).all().item())
+        self.result["finite_gradients"] &= finite
+        if not finite:
+            raise FloatingPointError("Non-finite gradient in the original training optimizer")
+        self.result["gradient_max_abs"] = max(self.result["gradient_max_abs"], float(gradient.abs().max().item()))
+
+    def after_optimizer_step(self, optimizer, args, kwargs):
+        self.result["optimizer_steps"] += 1
+
+    def on_train_batch_end(self, trainer):
+        values = trainer.loss_items.detach().float().cpu().reshape(-1).tolist()
+        total = float(trainer.loss.detach().float().cpu().item())
+        finite = all(math.isfinite(value) for value in [total, *values])
+        self.result["finite_loss"] &= finite
+        self.result["batches"] += 1
+        self.result["losses"].append({
+            "epoch": int(trainer.epoch), "total": total,
+            **dict(zip(trainer.loss_names, values)),
+        })
+        if not finite:
+            raise FloatingPointError("Non-finite loss in the original bridge expert trainer")
+
+    def finish(self):
+        if self.parameter is not None:
+            self.result["parameter_max_abs_diff"] = float(
+                (self.parameter.detach().float().cpu() - self.before).abs().max().item()
+            )
+        rows = self.result["losses"]
+        if rows:
+            self.result["mean_loss"] = {
+                key: sum(row[key] for row in rows) / len(rows)
+                for key in rows[0] if key != "epoch"
+            }
+        self.result["passed"] = bool(
+            self.result["batches"] > 0 and self.result["optimizer_steps"] > 0
+            and self.result["finite_loss"] and self.result["finite_gradients"]
+            and self.result["parameter_in_optimizer"]
+            and self.result["parameter_max_abs_diff"] > 0 and self.result["gradient_max_abs"] > 0
+        )
+        for handle in self.handles:
+            handle.remove()
+        self.handles = []
+        return self.result
 
 
 def write_md(path: Path, summary: dict) -> None:
@@ -55,7 +151,7 @@ def write_md(path: Path, summary: dict) -> None:
         "model_base",
         "data_yaml",
         "trainval_root",
-        "test_root",
+        "runtime_data_yaml",
         "imgsz",
         "epochs",
         "batch",
@@ -66,7 +162,7 @@ def write_md(path: Path, summary: dict) -> None:
         "start_time",
         "end_time",
         "split_summary_path",
-        "split_check_path",
+        "completed",
     ]:
         lines.append(f"- {key}: `{summary.get(key)}`")
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -86,44 +182,66 @@ def main() -> int:
     parser.add_argument("--patience", type=int, default=40)
     parser.add_argument("--close-mosaic", type=int, default=20)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--exist-ok", action="store_true", default=True)
+    parser.add_argument("--exist-ok", action="store_true", default=False)
+    parser.add_argument("--verify-updates", action="store_true", help="Assert finite loss, real optimizer steps and parameter updates.")
+    parser.add_argument("--amp", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--nbs", type=int, default=64, help="Nominal batch size; use 2 for batch-2 one-epoch smoke.")
     args = parser.parse_args()
 
-    from ultralytics import YOLO
-
     start = datetime.now().isoformat()
-    data_yaml = resolve_path(args.data)
-    project = resolve_path(args.project)
+    data_yaml = resolve_path(args.data).resolve()
+    project = resolve_path(args.project).resolve()
     run_dir = project / args.name
-    runtime_data_yaml = make_runtime_data_yaml(data_yaml, project)
-    trainval_root = resolve_path(DEFAULT_TRAINVAL)
-    test_root = resolve_path(DEFAULT_TEST)
-    split_check = resolve_path(DEFAULT_SPLIT_CHECK)
+    if run_dir.exists() and not args.exist_ok:
+        raise FileExistsError(f"Refusing to overwrite an existing run: {run_dir}; choose a new --name")
+    if args.epochs < 1 or args.nbs < 1:
+        raise ValueError("epochs and nbs must be positive")
     summary = {
         "purpose": "Bridge-only expert training for late fusion. This is not YOLOE and not a 2-class student.",
         "model_base": args.model,
         "data_yaml_input": args.data,
         "data_yaml": str(data_yaml.resolve()),
-        "runtime_data_yaml": str(runtime_data_yaml.resolve()),
-        "trainval_root_input": DEFAULT_TRAINVAL,
-        "trainval_root": str(trainval_root.resolve()),
-        "test_root_input": DEFAULT_TEST,
-        "test_root": str(test_root.resolve()),
+        "completed": False,
         "imgsz": args.imgsz,
         "epochs": args.epochs,
         "batch": args.batch,
         "device": args.device,
         "workers": args.workers,
+        "amp": args.amp,
+        "nbs": args.nbs,
+        "close_mosaic": args.close_mosaic,
         "seed": args.seed,
         "project_input": args.project,
         "project": str(project.resolve()),
         "name": args.name,
         "start_time": start,
-        "split_summary_path": str(trainval_root / "split_summary.json"),
-        "split_check_path": str(split_check),
     }
+    audit = TrainingUpdateAudit() if args.verify_updates else None
+    model = None
     try:
+        from tools.clean_pipeline.runtime import setup_runtime, assert_local_imports
+
+        setup_runtime()
+        from ultralytics import YOLO
+        import yaml
+
+        assert_local_imports()
+        # Runtime YAML stays isolated per run, while keeping the original path conversion.
+        runtime_data_yaml = make_runtime_data_yaml(data_yaml, project / "runtime" / args.name)
+        actual_data = yaml.safe_load(runtime_data_yaml.read_text(encoding="utf-8"))
+        trainval_root = Path(actual_data["path"])
+        summary.update({
+            "runtime_data_yaml": str(runtime_data_yaml),
+            "trainval_root": str(trainval_root),
+            "train_split": actual_data["train"],
+            "val_split": actual_data["val"],
+            "names": actual_data["names"],
+            "split_summary_path": str(trainval_root / "split_summary.json"),
+        })
         model = YOLO(args.model)
+        if audit:
+            model.add_callback("on_train_start", audit.on_train_start)
+            model.add_callback("on_train_batch_end", audit.on_train_batch_end)
         results = model.train(
             data=str(runtime_data_yaml),
             imgsz=args.imgsz,
@@ -138,7 +256,15 @@ def main() -> int:
             pretrained=True,
             seed=args.seed,
             exist_ok=args.exist_ok,
+            amp=args.amp,
+            nbs=args.nbs,
         )
+        run_dir = Path(model.trainer.save_dir).resolve()
+        if audit and not audit.finish()["passed"]:
+            raise RuntimeError(f"Training update audit failed: {audit.result}")
+        if not (run_dir / "weights" / "last.pt").is_file():
+            raise RuntimeError(f"Training did not save last.pt under {run_dir}")
+        assert_local_imports()
         summary["train_return"] = str(results)
         summary["completed"] = True
     except Exception as exc:
@@ -146,12 +272,20 @@ def main() -> int:
         summary["error"] = repr(exc)
         raise
     finally:
+        trainer = getattr(model, "trainer", None)
+        if trainer is not None and getattr(trainer, "save_dir", None):
+            run_dir = Path(trainer.save_dir).resolve()
         end = datetime.now().isoformat()
         summary["end_time"] = end
         summary["run_dir"] = str(run_dir)
         summary["best_checkpoint"] = str(run_dir / "weights" / "best.pt")
         summary["last_checkpoint"] = str(run_dir / "weights" / "last.pt")
         run_dir.mkdir(parents=True, exist_ok=True)
+        if audit:
+            summary["update_audit"] = audit.finish()
+            (run_dir / "training_update_audit.json").write_text(
+                json.dumps(audit.result, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8"
+            )
         (run_dir / "train_summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
         write_md(run_dir / "train_summary.md", summary)
     return 0

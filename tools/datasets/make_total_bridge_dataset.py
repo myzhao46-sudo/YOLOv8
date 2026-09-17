@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import sys
-sys.path.insert(0, r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics")
-sys.path.insert(1, r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8")
 
 import argparse
 import csv
@@ -16,7 +14,7 @@ from pathlib import Path
 from PIL import Image
 
 
-REPO_ROOT = Path(r"C:/Users/DOCTOR/Documents/GitHub/YOLOv8")
+REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MSAR_IMAGE_DIR = Path(r"E:/YOLODATA/MSAR-1.0 dataset/JPEGImages")
 DEFAULT_MSAR_XML_DIR = Path(r"E:/YOLODATA/MSAR-1.0 dataset/Annotations")
 DEFAULT_IR_IMAGE_ROOT = Path(r"E:/YOLODATA/MassMIND_bridge_yolo/images/train")

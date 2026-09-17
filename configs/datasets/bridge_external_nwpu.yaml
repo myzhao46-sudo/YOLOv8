@@ -1,0 +1,6 @@
+path: C:/Users/DOCTOR/Documents/GitHub/YOLOv8/ultralytics/datasets/external_bridge_nwpu_cls0_from1
+train: images/test
+val: images/test
+test: images/test
+nc: 1
+names: {0: bridge}

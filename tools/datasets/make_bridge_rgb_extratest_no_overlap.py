@@ -1,7 +1,7 @@
 # tools/datasets/make_bridge_rgb_extratest_no_overlap.py
 # -*- coding: utf-8 -*-
 """
-Create RGB/DIOR bridge external extra-test dataset for the current 2-class YOLOE student.
+Create RGB/DIOR bridge external extra-test dataset for the ship/bridge evaluation mapping.
 
 Student class space:
   0 ship
@@ -21,7 +21,7 @@ This script:
   - parses DIOR/VOC-style HBB XML
   - keeps only object name "bridge"
   - converts bndbox to YOLO detect 5-column labels
-  - forces class id = 1 for the current student
+  - forces class id = 1 for the ship/bridge evaluation mapping
   - selects up to 100 non-overlapping RGB images
   - does NOT delete existing SAR/IR extratest folders
   - writes data_rgb.yaml and updates combined data.yaml
@@ -45,7 +45,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from PIL import Image
 
 
-REPO_ROOT = Path(r"C:\Users\DOCTOR\Documents\GitHub\YOLOv8")
+REPO_ROOT = Path(__file__).resolve().parents[2]
 RGB_IMAGE_DIR = Path(r"E:\YOLODATA\bridge_rgb_all\JPEGImages-test")
 RGB_XML_DIR = Path(r"E:\YOLODATA\bridge_rgb_all\Annotations\Horizontal Bounding Boxes")
 USED_BRIDGEALL_ROOT = Path(r"E:\YOLODATA\bridgeAll")
@@ -57,7 +57,7 @@ PER_MODALITY = 100
 SEED = 42
 TARGET_CLASS_ID = 1
 
-STUDENT2_NAMES = {0: "ship", 1: "bridge"}
+EVAL_NAMES = {0: "ship", 1: "bridge"}
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 
 
@@ -517,7 +517,7 @@ def write_manifest(dst_root: Path, rows: List[Dict[str, str]]) -> Path:
     return path
 
 
-def write_student2_yaml(yaml_path: Path, val_image_dirs: List[Path]) -> None:
+def write_eval_yaml(yaml_path: Path, val_image_dirs: List[Path]) -> None:
     lines: List[str] = []
     lines.append("train:")
     for p in val_image_dirs:
@@ -530,7 +530,7 @@ def write_student2_yaml(yaml_path: Path, val_image_dirs: List[Path]) -> None:
     lines.append("nc: 2")
     lines.append("")
     lines.append("names:")
-    for k, v in STUDENT2_NAMES.items():
+    for k, v in EVAL_NAMES.items():
         lines.append(f"  {k}: {v}")
     lines.append("")
 
@@ -560,14 +560,14 @@ def write_yamls(dst_root: Path, configs_root: Path) -> Dict[str, str]:
     yamls = {
         "rgb": dst_root / "data_rgb.yaml",
         "all": dst_root / "data.yaml",
-        "rgb_config": configs_root / "student2_eval_bridge_extratest_rgb.yaml",
-        "all_config": configs_root / "student2_eval_bridge_extratest_all.yaml",
+        "rgb_config": configs_root / "bridge_external_rgb.yaml",
+        "all_config": configs_root / "bridge_external_all.yaml",
     }
 
-    write_student2_yaml(yamls["rgb"], [rgb_dir])
-    write_student2_yaml(yamls["all"], combined)
-    write_student2_yaml(yamls["rgb_config"], [rgb_dir])
-    write_student2_yaml(yamls["all_config"], combined)
+    write_eval_yaml(yamls["rgb"], [rgb_dir])
+    write_eval_yaml(yamls["all"], combined)
+    write_eval_yaml(yamls["rgb_config"], [rgb_dir])
+    write_eval_yaml(yamls["all_config"], combined)
 
     return {k: str(v) for k, v in yamls.items()}
 
@@ -650,7 +650,7 @@ def main() -> int:
     log(f"per_modality   = {args.per_modality}")
     log(f"seed           = {args.seed}")
     log(f"object_name    = {args.object_name}")
-    log(f"target_class   = {args.target_class}  # bridge in current 2-class student")
+    log(f"target_class   = {args.target_class}  # bridge in ship/bridge evaluation mapping")
     log(f"hash_check     = {args.hash_check}")
     log(f"dry_run        = {args.dry_run}")
     log("=" * 100)
@@ -737,9 +737,9 @@ def main() -> int:
         "manifest_csv": str(manifest_path),
         "output_dataset": str(dst_root),
         "target_class_for_bridge": args.target_class,
-        "student2_names": STUDENT2_NAMES,
+        "eval_names": EVAL_NAMES,
         "notes": [
-            "This dataset is for current 2-class student: 0 ship, 1 bridge.",
+            "This dataset is for ship/bridge evaluation mapping: 0 ship, 1 bridge.",
             "All output RGB labels are forced to class 1.",
             "This script only handles DIOR/RGB VOC-style HBB XML.",
             "Existing SAR/IR extratest folders are not deleted.",
