@@ -2,7 +2,9 @@
 
 本分支 `distill_pipeline_clean` 保留已经实际运行的双模型流程：冻结 YOLOE ship 基础模型，训练普通 YOLOv8m bridge 专家，再做预测级 late fusion 和自定义 box 评估。类别仍是基础模型 `ship/harbor/tank`、专家本地 `0 bridge`、融合 `0 ship / 1 bridge`。这只是迁移验收基线，最终增强目标类别留待后续研究确认。
 
-**真实验收已通过**：固定源提交与清理后同权重预测完全一致；真实数据 → 1 epoch 训练 → 保存 → 新进程重载新权重 → 基础模型与专家推理 → 融合 → 自定义评估已跑通。证据见 [迁移记录](docs/migration_20260918.md) 和 [结构化验收记录](docs/acceptance_20260918.json)。
+**先前小样本验收已通过**：固定源提交与清理后同权重预测完全一致；真实数据 → 1 epoch 训练 → 保存 → 新进程重载新权重 → 基础模型与专家推理 → 融合 → 自定义评估已跑通。证据见 [迁移记录](docs/migration_20260918.md) 和 [结构化验收记录](docs/acceptance_20260918.json)。
+
+**正式全量验收**见 [baseline_verification.md](docs/baseline_verification.md)。832 张全量旧行为对照、历史完整专家同源/NWPU 和融合评估已经完成；150 epoch 正式训练已按用户要求停止，最后完整检查点为第1 epoch，新专家全量评估尚未完成。后续由用户在服务器运行，完整命令和参数含义见 [服务器运行手册](docs/server_runbook.md)。状态保存在 `runs/baseline_verification/20260918_formal_v2/state.json`，不把先前 smoke 当成全量完成。
 
 **尚未实现**：soft/logit KD、box KD、选择性响应蒸馏、分数校准、可靠性门控。保留的 hard pseudo 是数据准备功能，不是 soft KD；NMS 是预测去重，不是可靠性门控。未添加新算法或学生模型。
 
@@ -19,7 +21,21 @@ $expert = "$assets/runs/bridge_expert/yolov8m_total_bridge_split_img1024_ep150/w
 $stamp = Get-Date -Format yyyyMMdd_HHmmss
 ```
 
-一键重新运行固定样本验收，包含与已保存源参照的比较；输出目录自动使用新的时间戳：
+重新启动一套正式全量流程（全量历史评估 → 从 yolov8m.pt 初始化训练 → 新 best 重载 → 全量融合与外测），输出自动使用新时间戳：
+
+```powershell
+& $py -B tools/run_baseline_verification.py --legacy-reference runs/baseline_verification/20260918_legacy_reference
+```
+
+若本次正式运行中断，确认没有旧训练进程后，用同一 run 的优化器检查点继续；已有历史评估不重复执行：
+
+```powershell
+& $py -B tools/run_baseline_verification.py --resume-run runs/baseline_verification/20260918_formal_v2
+```
+
+恢复入口会归档检查点和中断状态，并拒绝重复启动尚存在的已记录进程。原模型、数据、split、指标和正式训练总 epoch 不变；恢复不是从历史完整专家开始。
+
+一键重新运行固定小样本回归，包含与已保存源参照的比较；输出目录自动使用新的时间戳：
 
 ```powershell
 & $py -B tools/run_clean_smoke.py --asset-root $assets --fixtures runs/migration/fixtures --reference runs/migration/before
@@ -39,7 +55,8 @@ smoke 从**既有 train / val** 分别选 12 / 6 张，另从既有 test 选 shi
 
 | 步骤 | 入口 | 说明 |
 |---|---|---|
-| 完整验收 | `tools/run_clean_smoke.py` | 使用下列训练与评估实现；没有重复训练器 |
+| 正式全量验收 | `tools/run_baseline_verification.py` | 历史完整权重对照、全量正式训练和新权重全量评估；复用原训练/指标 |
+| 小样本回归 | `tools/run_clean_smoke.py` | 使用下列训练与评估实现；不能替代正式训练 |
 | 专家训练 | `tools/train/train_bridge_expert_yolo.py` | 保留运行时 YAML；外部训练数据的标签和缓存隔离 |
 | 基础模型 box-only 评估 | `tools/eval/eval_yoloeseg_box_only.py` | 参数化 CLI；内部复用 `eval_teacher_ship_external.py`，不调用 YOLOE `model.val()` |
 | 专家统一评估 | `tools/eval/eval_bridge_expert_external_yolov8.py` | 普通 Detect 官方 AP 加固定阈值自定义指标，适用同源/外源单类数据 |
@@ -78,7 +95,7 @@ smoke 从**既有 train / val** 分别选 12 / 6 张，另从既有 test 选 shi
 
 ## 正式命令与口径
 
-下面使用上面的 PowerShell 变量。**长训练和下列全量评估未在本次执行**；CLI 已实际核对，训练 YAML 的 2481 / 532 张隔离转换已通过；评估入口均已在真实小子集上执行通过。输出名加 `$stamp`，重新运行前请重新生成时间戳。
+下面使用上面的 PowerShell 变量。历史完整专家的全量统一评估与融合已实际执行，正式新专家训练/评估状态见上方正式报告；基础 CPU/640 旧口径和 held-out 阈值扫描不是本次正式协议。输出名加 `$stamp`，重新运行前请重新生成时间戳。
 
 当前 8GB 机器的正式专家训练命令：
 
@@ -97,7 +114,7 @@ smoke 从**既有 train / val** 分别选 12 / 6 张，另从既有 test 选 shi
 专家统一评估（同源测试）；外源只把 `--data` 换成 `configs/datasets/bridge_external_nwpu.yaml` 并使用新的 name：
 
 ```powershell
-& $py -B tools/eval/eval_bridge_expert_external_yolov8.py --weights $expert --data configs/datasets/total_bridge_test.yaml --imgsz 1024 --device 0 --batch 2 --conf 0.25 --iou 0.7 --project runs/eval --name "bridge_test_$stamp" --save-json --save-md --save-preds --max-vis 12
+& $py -B tools/eval/eval_bridge_expert_external_yolov8.py --weights $expert --data configs/datasets/total_bridge_test.yaml --imgsz 1024 --device 0 --batch 8 --conf 0.25 --iou 0.7 --project runs/eval --name "bridge_test_$stamp" --save-json --save-md --save-preds --max-vis 12
 ```
 
 历史 held-out 阈值扫描，`--iou` 指 NMS，GT 匹配仍是 0.5：
