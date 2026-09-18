@@ -360,8 +360,15 @@ def infer_bridge(
     started = time.time()
     for start in range(0, len(image_paths), args.batch):
         chunk = image_paths[start : start + args.batch]
+        # GT and the frozen ship path use raw pixels, without EXIF transposition.
+        # Passing filenames to YOLO.predict implicitly rotates EXIF-tagged images.
+        # Decode the same raw pixels here and supply BGR arrays to the predictor.
+        inputs = []
+        for path in chunk:
+            with Image.open(path) as opened:
+                inputs.append(np.ascontiguousarray(np.asarray(opened.convert("RGB"))[:, :, ::-1]))
         results = wrapper.predict(
-            source=[str(path) for path in chunk],
+            source=inputs,
             imgsz=args.imgsz,
             conf=args.bridge_conf,
             iou=args.nms_iou,

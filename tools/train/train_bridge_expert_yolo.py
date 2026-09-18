@@ -4,6 +4,7 @@ import sys
 import argparse
 import json
 import math
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -73,6 +74,8 @@ class TrainingUpdateAudit:
         self.parameter = None
         self.before = None
         self.handles = []
+        self.started = time.time()
+        self.epoch_records = []
 
     def on_train_start(self, trainer):
         from ultralytics.utils.torch_utils import unwrap_model
@@ -121,6 +124,29 @@ class TrainingUpdateAudit:
         })
         if not finite:
             raise FloatingPointError("Non-finite loss in the original bridge expert trainer")
+
+    def on_fit_epoch_end(self, trainer):
+        """Persist observation only; checkpoint choice remains the original trainer's."""
+        row = {
+            "epoch": int(trainer.epoch) + 1,
+            "planned_epochs": int(trainer.epochs),
+            "best_epoch": int(trainer.stopper.best_epoch),
+            "fitness": float(trainer.fitness),
+            "best_fitness": float(trainer.best_fitness),
+            "elapsed_seconds": time.time() - self.started,
+            "optimizer_steps": self.result["optimizer_steps"],
+            "metrics": {str(k): float(v) for k,v in trainer.metrics.items()},
+            "train_loss": dict(zip(trainer.loss_names, trainer.tloss.detach().float().cpu().tolist())),
+            "stop": bool(trainer.stop),
+        }
+        if self.epoch_records and self.epoch_records[-1]["epoch"] == row["epoch"]:
+            self.epoch_records[-1] = row
+        else:
+            self.epoch_records.append(row)
+        target = Path(trainer.save_dir) / "training_progress.json"
+        temporary = target.with_suffix(".tmp")
+        temporary.write_text(json.dumps({"latest": row, "epochs": self.epoch_records},indent=2,allow_nan=False),encoding="utf-8")
+        temporary.replace(target)
 
     def finish(self):
         if self.parameter is not None:
@@ -242,6 +268,7 @@ def main() -> int:
         if audit:
             model.add_callback("on_train_start", audit.on_train_start)
             model.add_callback("on_train_batch_end", audit.on_train_batch_end)
+            model.add_callback("on_fit_epoch_end", audit.on_fit_epoch_end)
         results = model.train(
             data=str(runtime_data_yaml),
             imgsz=args.imgsz,
@@ -267,6 +294,9 @@ def main() -> int:
         assert_local_imports()
         summary["train_return"] = str(results)
         summary["completed"] = True
+        summary["actual_epochs"] = int(model.trainer.epoch) + 1
+        summary["best_epoch"] = int(model.trainer.stopper.best_epoch)
+        summary["termination_reason"] = "early_stopping" if summary["actual_epochs"] < args.epochs else "epoch_limit"
     except Exception as exc:
         summary["completed"] = False
         summary["error"] = repr(exc)

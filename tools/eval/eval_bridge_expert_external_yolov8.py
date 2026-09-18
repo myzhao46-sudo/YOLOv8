@@ -661,6 +661,8 @@ def main() -> None:
         imgsz=args.imgsz,
         batch=args.batch,
         device=args.device,
+        workers=0,
+        half=False,
         conf=ULTRALYTICS_VAL_CONF,
         iou=args.iou,
         project=str(run_dir),
@@ -710,6 +712,8 @@ def main() -> None:
         "conf": args.conf,
         "iou": args.iou,
         "batch": args.batch,
+        "workers": 0,
+        "precision": "FP32",
         "ultralytics_val_conf": ULTRALYTICS_VAL_CONF,
         "historical_total_bridge_rgb_ap50": 0.6590,
         "model_info": {

@@ -8,9 +8,20 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+DISABLED_EDITABLE_FINDERS = []
 
 
 def setup_runtime() -> Path:
+    # Disable the shared environment's old editable-project resolver in this
+    # process only. Missing local modules must fail, never fall back to that tree.
+    prefix = "__editable___ultralytics_"
+    for finder in list(sys.meta_path):
+        if getattr(finder, "__module__", "").startswith(prefix):
+            DISABLED_EDITABLE_FINDERS.append(str(finder))
+            sys.meta_path.remove(finder)
+    sys.path_hooks[:] = [hook for hook in sys.path_hooks
+                         if not getattr(hook, "__module__", "").startswith(prefix)]
+    sys.path[:] = [path for path in sys.path if not str(path).startswith("__editable__.ultralytics-")]
     for path in (ROOT, ROOT / "ultralytics"):
         value = str(path)
         while value in sys.path:

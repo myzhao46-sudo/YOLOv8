@@ -8,6 +8,8 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -43,6 +45,9 @@ def main():
     parser.add_argument("--report-conf", type=float, default=.25)
     parser.add_argument("--max-det", type=int, default=300)
     parser.add_argument("--fusion-nms", choices=["class-aware", "class-agnostic"], default="class-aware")
+    parser.add_argument("--ship-cache", type=Path, help="Reuse this run's verified post-expert-NMS ship predictions")
+    parser.add_argument("--legacy-coordinate-audit", action="store_true",
+                        help="Diagnostic only: record known EXIF frame mismatch in pre-fix source predictions")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=False)
     torch.manual_seed(42)
@@ -60,16 +65,33 @@ def main():
             records.extend(rows)
             stats[split] = stat
         before_file = sha256(args.ship_weights)
-        ship_wrapper, ship_inner, ship_meta = fusion.prepare_ship_expert(args.ship_weights)
-        names = fusion.normalize_names(ship_inner.names)
-        assert names == {0: "ship", 1: "harbor", 2: "tank"}, names
-        assert ship_inner.model[-1].nc == 3
-        assert ship_meta["text_embedding_shape"] == [1, 3, 512]
-        before_params = state_hash(ship_inner)
-        ship, ship_counts = fusion.infer_ship(ship_inner, records, args, fusion.parse_device(args.device))
-        assert state_hash(ship_inner) == before_params, "Frozen base parameters changed"
-        assert all(not p.requires_grad for p in ship_inner.parameters())
-        del ship_wrapper, ship_inner
+        protocol = {key: getattr(args, key) for key in ("imgsz", "batch", "device", "ship_conf", "nms_iou", "max_det")}
+        protocol.update(precision="FP32", stage="post expert NMS, before fusion NMS", preprocessing="existing PIL RGB letterbox + raw YOLOESegment box branch")
+        label_fingerprint = hashlib.sha256(json.dumps(records, sort_keys=True).encode()).hexdigest()
+        inference_code = {name: sha256(Path(fusion.PROJECT_ROOT) / name) for name in ["tools/eval/eval_teacher_ship_external.py", "tools/eval/eval_late_fusion_ship_bridge.py", "ultralytics/ultralytics/nn/modules/head.py"]}
+        if args.ship_cache:
+            cached = json.loads((args.ship_cache / "result.json").read_text(encoding="utf-8"))
+            assert cached["status"] == "passed" and cached["base_sha256"] == before_file
+            assert cached["cache_protocol"] == protocol and cached["label_fingerprint"] == label_fingerprint
+            assert cached["inference_code"] == inference_code
+            cached_file = args.ship_cache / "ship_predictions.jsonl"
+            assert sha256(cached_file) == cached["ship_predictions_sha256"]
+            rows = [json.loads(line) for line in cached_file.read_text(encoding="utf-8").splitlines()]
+            assert [row["image"] for row in rows] == [row["image"] for row in records]
+            ship = {row["image"]: row["predictions"] for row in rows}
+            ship_meta, ship_counts = cached["ship"], dict(cached["ship_inference"], reused_from=str(args.ship_cache))
+            before_params = cached["base_parameters_sha256"]
+        else:
+            ship_wrapper, ship_inner, ship_meta = fusion.prepare_ship_expert(args.ship_weights)
+            names = fusion.normalize_names(ship_inner.names)
+            assert names == {0: "ship", 1: "harbor", 2: "tank"}, names
+            assert ship_inner.model[-1].nc == 3
+            assert ship_meta["text_embedding_shape"] == [1, 3, 512]
+            before_params = state_hash(ship_inner)
+            ship, ship_counts = fusion.infer_ship(ship_inner, records, args, fusion.parse_device(args.device))
+            assert state_hash(ship_inner) == before_params, "Frozen base parameters changed"
+            assert all(not p.requires_grad for p in ship_inner.parameters())
+            del ship_wrapper, ship_inner
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         bridge_wrapper, _, bridge_meta = fusion.prepare_bridge_expert(args.bridge_weights)
@@ -81,14 +103,23 @@ def main():
         outputs = {"ship": ship, "bridge": bridge, "fusion": fused}
         metrics = {}
         matches = {}
+        coordinate_errors = []
         for mode, predictions in outputs.items():
             for record in records:
                 for box in predictions[record["image_key"]]:
                     values = np.asarray(box["xyxy"] + [box["score"]], dtype=float)
                     assert np.isfinite(values).all()
                     x1,y1,x2,y2,score = values
-                    assert 0 <= score <= 1 and 0 <= x1 <= x2 <= record["width"] + .001
-                    assert 0 <= y1 <= y2 <= record["height"] + .001
+                    assert 0 <= score <= 1 and 0 <= x1 <= x2 and 0 <= y1 <= y2
+                    if x2 > record["width"] + .001 or y2 > record["height"] + .001:
+                        from PIL import Image, ImageOps
+                        with Image.open(record["image"]) as opened:
+                            corrected_size = ImageOps.exif_transpose(opened).size
+                            orientation = opened.getexif().get(274)
+                        defect = {"mode": mode, "image": record["image"], "raw_size": [record["width"],record["height"]], "exif_size":list(corrected_size), "orientation":orientation, "prediction":box}
+                        coordinate_errors.append(defect)
+                        save_json(args.out / "coordinate_errors.json", coordinate_errors)
+                        assert args.legacy_coordinate_audit and orientation in (5,6,7,8) and x2<=corrected_size[0]+.001 and y2<=corrected_size[1]+.001, defect
                     assert box["class_id"] in (0,1)
             fusion.write_jsonl(args.out / f"{mode}_predictions.jsonl", [fusion.prediction_record(r,predictions[r["image_key"]]) for r in records])
             metrics[mode] = {}
@@ -104,7 +135,13 @@ def main():
                       metrics=metrics, matches=matches, modules=assert_local_imports(),
                       base_sha256=before_file, base_parameters_sha256=before_params,
                       base_file_unchanged=sha256(args.ship_weights)==before_file,
-                      expert_sha256=sha256(args.bridge_weights))
+                      expert_sha256=sha256(args.bridge_weights), cache_protocol=protocol,
+                      label_fingerprint=label_fingerprint, inference_code=inference_code,
+                      ship_predictions_sha256=sha256(args.out / "ship_predictions.jsonl"),
+                      code_commit=subprocess.check_output(["git", "rev-parse", "HEAD"],cwd=fusion.PROJECT_ROOT,text=True).strip())
+        result.update(coordinate_errors=coordinate_errors, geometry_valid=not coordinate_errors,
+                      bridge_preprocessing="PIL raw RGB -> contiguous BGR arrays; no EXIF transpose (code hash identifies legacy path behavior)",
+                      diagnostic_legacy_mode=args.legacy_coordinate_audit)
         assert result["base_file_unchanged"]
         save_json(args.out / "metrics.json", metrics)
         save_json(args.out / "matches.json", matches)
