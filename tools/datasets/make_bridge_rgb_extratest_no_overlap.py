@@ -3,7 +3,7 @@
 """
 Create RGB/DIOR bridge external extra-test dataset for the ship/bridge evaluation mapping.
 
-Student class space:
+Fusion evaluation class space:
   0 ship
   1 bridge
 

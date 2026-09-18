@@ -59,7 +59,7 @@ def make_runtime_data_yaml(data_yaml: Path, project_dir: Path) -> Path:
 class TrainingUpdateAudit:
     """Observe the original trainer and optimizer without changing their computations."""
 
-    def __init__(self):
+    def __init__(self, resume_progress=None):
         self.result = {
             "optimizer_steps": 0,
             "batches": 0,
@@ -76,9 +76,26 @@ class TrainingUpdateAudit:
         self.handles = []
         self.started = time.time()
         self.epoch_records = []
+        self.resume_progress = resume_progress
+        if resume_progress:
+            self.epoch_records = resume_progress["epochs"]
+            self.result["prior_optimizer_steps"] = resume_progress["latest"]["optimizer_steps"]
+            self.result["optimizer_steps"] = self.result["prior_optimizer_steps"]
+            self.result["loss_scope"] = "This resumed session only; earlier epoch means retained in training_progress.json"
 
     def on_train_start(self, trainer):
         from ultralytics.utils.torch_utils import unwrap_model
+
+        if self.resume_progress:
+            previous = self.resume_progress["latest"]
+            if int(trainer.start_epoch) != previous["epoch"]:
+                raise RuntimeError("Checkpoint and saved progress epochs disagree")
+            if trainer.ema.updates != previous["optimizer_steps"]:
+                raise RuntimeError("Restored EMA update count and optimizer audit disagree")
+            # The framework restores optimizer/EMA/fitness, but not the stopper.
+            # Restore the observed original validation history, without changing its rule.
+            trainer.stopper.best_epoch = previous["best_epoch"]
+            trainer.stopper.best_fitness = previous["best_fitness"]
 
         candidates = ((name, value) for name, value in unwrap_model(trainer.model).named_parameters()
                       if value.requires_grad)
@@ -134,11 +151,14 @@ class TrainingUpdateAudit:
             "fitness": float(trainer.fitness),
             "best_fitness": float(trainer.best_fitness),
             "elapsed_seconds": time.time() - self.started,
+            "session_elapsed_seconds": time.time() - self.started,
             "optimizer_steps": self.result["optimizer_steps"],
             "metrics": {str(k): float(v) for k,v in trainer.metrics.items()},
             "train_loss": dict(zip(trainer.loss_names, trainer.tloss.detach().float().cpu().tolist())),
             "stop": bool(trainer.stop),
         }
+        if self.resume_progress:
+            row["elapsed_seconds"] += self.resume_progress["latest"]["elapsed_seconds"]
         if self.epoch_records and self.epoch_records[-1]["epoch"] == row["epoch"]:
             self.epoch_records[-1] = row
         else:
@@ -149,6 +169,7 @@ class TrainingUpdateAudit:
         temporary.replace(target)
 
     def finish(self):
+        self.result["session_optimizer_steps"] = self.result["optimizer_steps"] - self.result.get("prior_optimizer_steps", 0)
         if self.parameter is not None:
             self.result["parameter_max_abs_diff"] = float(
                 (self.parameter.detach().float().cpu() - self.before).abs().max().item()
@@ -212,6 +233,7 @@ def main() -> int:
     parser.add_argument("--verify-updates", action="store_true", help="Assert finite loss, real optimizer steps and parameter updates.")
     parser.add_argument("--amp", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--nbs", type=int, default=64, help="Nominal batch size; use 2 for batch-2 one-epoch smoke.")
+    parser.add_argument("--resume-from", type=Path, help="Resume this same interrupted run's last.pt, including optimizer/EMA; requires --exist-ok")
     args = parser.parse_args()
 
     start = datetime.now().isoformat()
@@ -242,7 +264,14 @@ def main() -> int:
         "name": args.name,
         "start_time": start,
     }
-    audit = TrainingUpdateAudit() if args.verify_updates else None
+    resume_progress = None
+    if args.resume_from:
+        if not args.exist_ok or args.resume_from.resolve() != (run_dir / "weights/last.pt").resolve():
+            raise ValueError("Resume must explicitly target this run's last.pt with --exist-ok")
+        resume_progress = json.loads((run_dir / "training_progress.json").read_text(encoding="utf-8"))
+        summary["resume_from"] = str(args.resume_from.resolve())
+        summary["previous_completed_epochs"] = resume_progress["latest"]["epoch"]
+    audit = TrainingUpdateAudit(resume_progress) if args.verify_updates else None
     model = None
     try:
         from tools.clean_pipeline.runtime import setup_runtime, assert_local_imports
@@ -253,7 +282,15 @@ def main() -> int:
 
         assert_local_imports()
         # Runtime YAML stays isolated per run, while keeping the original path conversion.
-        runtime_data_yaml = make_runtime_data_yaml(data_yaml, project / "runtime" / args.name)
+        if args.resume_from:
+            model = YOLO(str(args.resume_from.resolve()))
+            if model.ckpt.get("optimizer") is None or model.ckpt.get("epoch", -1) < 0:
+                raise ValueError("Interrupted checkpoint has no resumable optimizer/epoch state")
+            runtime_data_yaml = Path(model.ckpt["train_args"]["data"]).resolve()
+            if not runtime_data_yaml.is_relative_to(project) or not runtime_data_yaml.is_file():
+                raise ValueError("Resume runtime YAML must belong to this run's project")
+        else:
+            runtime_data_yaml = make_runtime_data_yaml(data_yaml, project / "runtime" / args.name)
         actual_data = yaml.safe_load(runtime_data_yaml.read_text(encoding="utf-8"))
         trainval_root = Path(actual_data["path"])
         summary.update({
@@ -264,7 +301,8 @@ def main() -> int:
             "names": actual_data["names"],
             "split_summary_path": str(trainval_root / "split_summary.json"),
         })
-        model = YOLO(args.model)
+        if model is None:
+            model = YOLO(args.model)
         if audit:
             model.add_callback("on_train_start", audit.on_train_start)
             model.add_callback("on_train_batch_end", audit.on_train_batch_end)
@@ -285,6 +323,7 @@ def main() -> int:
             exist_ok=args.exist_ok,
             amp=args.amp,
             nbs=args.nbs,
+            resume=str(args.resume_from.resolve()) if args.resume_from else False,
         )
         run_dir = Path(model.trainer.save_dir).resolve()
         if audit and not audit.finish()["passed"]:
