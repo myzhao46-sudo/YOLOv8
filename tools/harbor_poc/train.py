@@ -14,6 +14,9 @@ def handoff(root,run,status,detail):
       f'\n- run_id: `{run}`\n- PID: `{os.getpid()}`\n- run directory: `{run_dir}`\n- checkpoint: `{run_dir}/weights/last.pt`\n- progress: `{run_dir}/progress.json`\n\n'+
       json.dumps(detail,ensure_ascii=False,indent=2)+'\n\n## Resume if process has stopped\n\nFirst inspect recorded PID and progress. Never start a duplicate process. Use resume only with identical config; new config is a new run from a recorded parent.\n\n```powershell\n'+resume+'\n```\n\n'+
       'Completed: audit reused, fixed derived manifests and evaluation protocol, B/E0 validation and parity checks.\nNext: finish config A, assess validation evidence, maximum 3 configurations; chosen config second-seed validation before test. Test inference has NOT run unless final_selection.json/test outputs explicitly exist. Thermal IR/gating/distillation not implemented.\n',encoding='utf8')
+    note=root/'LOW_INTERACTION.md'
+    if note.exists():
+        with (root/'HANDOFF.md').open('a',encoding='utf8') as f:f.write('\n\n'+note.read_text(encoding='utf8'))
 
 def cpu_copy(m):
     x=copy.deepcopy(m).cpu().eval()
