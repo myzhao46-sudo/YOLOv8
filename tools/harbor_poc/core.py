@@ -139,14 +139,16 @@ def get_preds(model,records,size,batch,base=False,dataset=None,ship_native=False
 def metrics(records,pred,details=False):
     from tools.eval.eval_late_fusion_ship_bridge import match_class,compute_ap
     from tools.eval.eval_teacher_ship_external import box_iou_one_to_many
+    from tools.harbor_poc.fast_metrics import prepare,match
     result={}
     for mod in ['rgb','sar']:
         rr=[r for r in records if r['modality']==mod]
         view=[{'image_key':r['key'],'ground_truth':[{'class_id':0,'xyxy':o['xyxy']} for o in r['harbor']]} for r in rr]
+        cached=prepare(view,pred,0)
         aps=[]
         for t in np.linspace(.5,.95,10):
-            mm=match_class(view,pred,0,float(t));aps.append(compute_ap(mm['total_gt'],mm['true_positive'],mm['false_positive']))
-        fixed=match_class(view,pred,0,.5,minimum_score=.25)
+            mm=match(cached,float(t));aps.append(compute_ap(mm['total_gt'],mm['true_positive'],mm['false_positive']))
+        fixed=match(cached,.5,minimum_score=.25)
         result[mod]={'images':len(rr),'gt':fixed['total_gt'],'ap50':aps[0],'ap50_95':float(np.mean(aps)),
             'precision':fixed['tp']/max(fixed['tp']+fixed['fp'],1),'recall':fixed['tp']/max(fixed['total_gt'],1),
             'tp':fixed['tp'],'fp':fixed['fp'],'fn':fixed['fn'],'candidates':sum(len(pred[r['key']]) for r in rr),'ap_by_iou':aps}
