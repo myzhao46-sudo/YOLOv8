@@ -19,3 +19,8 @@ __pycache__/
 /ultralytics/.venv/
 *.egg-info/
 configs/*.local.yaml
+
+# Machine-local Python, downloads, caches and readiness reports
+/.local-runtime/
+/.venv/
+/reports/local_machine/

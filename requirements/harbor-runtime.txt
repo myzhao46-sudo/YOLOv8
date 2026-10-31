@@ -1,0 +1,13 @@
+# Keep NumPy 1.x; OpenCV 4.13 requires NumPy 2 and conflicts with the old environment.
+# Install the matching torch/torchvision CUDA wheels separately (see setup_harbor_env.ps1).
+numpy==1.26.4
+opencv-python==4.11.0.86
+matplotlib==3.10.8
+pillow==12.1.1
+PyYAML==6.0.3
+requests==2.33.1
+scipy==1.15.3
+psutil==7.2.2
+polars==1.39.3
+ultralytics-thop==2.0.18
+tqdm==4.67.3
